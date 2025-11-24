@@ -75,5 +75,3 @@ flip7_strategy/
     - **Flip Three**: Target is forced to draw 3 cards. Nested actions (Freeze/Flip Three) are queued and resolved *after* the draws.
     - **Second Chance**: Saves you from a bust. If you draw a duplicate Second Chance, you must pass it to another player.
 
-## License
-MIT

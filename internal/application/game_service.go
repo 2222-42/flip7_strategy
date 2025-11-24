@@ -225,9 +225,8 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 		s.log("%s forced draw (%d/3): %v\n", target.Name, i+1, fCard)
 
 		// Handle Second Chance logic specifically for Flip Three
-		// "(3-a) if, a Second Chance card is revealed, it may be set aside and used"
-		// This implies it's added to hand immediately?
-		// "(3-b) If another Flip Three or Freeze card is revealed they are resolved AFTER all three cards are drawn."
+		// Second Chance cards are added to the player's hand and resolved immediately.
+		// Flip Three and Freeze action cards are queued and resolved after all three cards are drawn.
 
 		if fCard.Type == domain.CardTypeAction {
 			if fCard.ActionType == domain.ActionSecondChance {
