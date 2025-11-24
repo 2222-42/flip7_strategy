@@ -63,14 +63,7 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool) {
 	case CardTypeNumber:
 		if _, exists := h.NumberCards[card.Value]; exists {
 			if !h.SecondChanceUsed {
-				// Check if we have a Second Chance card to use?
-				// Actually, Second Chance is an Action card.
-				// Rules usually say: if you draw a duplicate, you can use Second Chance IF you have it (or maybe it's played immediately?).
-				// The doc says: "SecondChance: Track and discard on duplicate."
-				// Let's assume if we have a Second Chance card in ActionCards, we consume it.
-				// But Action cards are usually resolved immediately or kept?
-				// Doc says "ActionCards []Card".
-				// Let's check if we have a Second Chance in our ActionCards list.
+				// If player has a Second Chance card, use it to avoid the bust.
 				hasSecondChance := false
 				scIndex := -1
 				for i, c := range h.ActionCards {
@@ -103,12 +96,8 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool) {
 		// Note: Immediate actions like FlipThree need to be handled by the caller/Round.
 	}
 
-	// Check Flip 7 condition: 7 cards total? Or 7 number cards?
-	// "Flip 7" usually means collecting 7 unique number cards (or just 7 cards?).
-	// Doc says "Bonus 15 for Flip 7".
-	// Let's assume 7 cards of any type? Or 7 Number cards?
-	// Given the name "Flip 7" and the mechanics of unique numbers, it likely refers to having 7 cards in hand without busting.
-	// Let's count total cards.
+	// Flip 7 condition: triggers when the player has 7 or more cards in hand (of any type) without busting.
+	// If this rule needs to be verified against official game documentation, add a TODO here.
 	totalCards := len(h.RawNumberCards) + len(h.ModifierCards) + len(h.ActionCards)
 	if totalCards >= 7 && h.Status == HandStatusActive {
 		return false, true

@@ -18,17 +18,9 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 	}
 
 	// Apply modifiers
-	// Order matters: usually Additions then Multipliers? Or Multipliers then Additions?
-	// Rules usually specify. Let's assume standard math: Base + Adds, then Multipliers?
-	// Or maybe Multipliers apply to the base?
-	// Doc says: "Impl: Sum numbers, apply modifiers (x2 first), add bonus." -> Wait, x2 first?
-	// "apply modifiers (x2 first)" -> This implies x2 applies to the base sum, then you add +2/+4?
-	// Or does it mean x2 is processed first in the list?
-	// Let's assume: (Sum + Modifiers) * Multipliers?
-	// Or: Sum * Multiplier + Modifiers?
-	// Let's stick to a safe bet: Sum Numbers. Add "Plus" modifiers. Then Multiply.
-	// Wait, doc says "x2 first". That might mean: (Sum * 2) + Modifiers?
-	// Let's re-read doc snippet: "Impl: Sum numbers, apply modifiers (x2 first), add bonus."
+	// Apply modifiers according to the current game rule interpretation:
+	// Score = (Sum of number cards + sum of "plus" modifiers) * (product of multipliers) + bonus.
+	// TODO: If the official rule clarifies the order of operations, update this formula and comment. snippet: "Impl: Sum numbers, apply modifiers (x2 first), add bonus."
 	// This is ambiguous. "x2 first" could mean "Apply x2 to the base sum, then add other modifiers".
 	// Let's try: Total = (BaseSum * Multipliers) + AddModifiers + Bonus.
 

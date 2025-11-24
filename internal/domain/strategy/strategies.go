@@ -44,7 +44,7 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 	}
 
 	if action == domain.ActionGiveSecondChance {
-		// Give to lowest score opponent
+		// GiveSecondChance: Give to player with lowest score to prolong game
 		bestTarget := candidates[0] // Default, will be self if no opponents
 		minScore := 10000
 		for _, p := range candidates {
@@ -106,7 +106,7 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 	}
 
 	if action == domain.ActionGiveSecondChance {
-		// Give to a random player (including self)
+		// GiveSecondChance: Give to random player
 		return candidates[rand.Intn(len(candidates))]
 	}
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 )
 
+const MinDeckSizeBeforeReshuffle = 10
+
 type SimulationService struct{}
 
 func NewSimulationService() *SimulationService {

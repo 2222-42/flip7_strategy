@@ -42,7 +42,7 @@ func (s *GameService) RunGame() {
 		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
 
 		// Reshuffle if deck is low?
-		if len(deck.Cards) < 10 {
+		if len(deck.Cards) < MinDeckSizeBeforeReshuffle {
 			s.log("%s\n", "Reshuffling deck...")
 			deck = domain.NewDeck()
 		}
@@ -139,16 +139,29 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 			}
 
 			if len(candidates) > 0 {
-				target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
-				s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
-				// Add to target's hand (recursive check? "If everyone else already has one, then discard")
-				// Let's assume we just add it to target. If target has one, they keep two?
-				// Rule says: "If everyone else already has one, then discard the Second Chance card."
-				// This implies we should check if target has one.
-				// But simpler: just give it.
-				// Wait, if target has one, do they pass it too? "If they are dealt..."
-				// Receiving from another player is not "dealt" from deck, but let's assume they just keep it.
-				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
+				// Check if all candidates already have a Second Chance card
+				allHaveSecondChance := true
+				for _, candidate := range candidates {
+					if !candidate.CurrentHand.HasSecondChance() {
+						allHaveSecondChance = false
+						break
+					}
+				}
+				if allHaveSecondChance {
+					s.log("All other active players already have a Second Chance. Discarding card.\n")
+					// Discard
+				} else {
+					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
+					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
+					// Add to target's hand (recursive check? "If everyone else already has one, then discard")
+					// Let's assume we just add it to target. If target has one, they keep two?
+					// Rule says: "If everyone else already has one, then discard the Second Chance card."
+					// This implies we should check if target has one.
+					// But simpler: just give it.
+					// Wait, if target has one, do they pass it too? "If they are dealt..."
+					// Receiving from another player is not "dealt" from deck, but let's assume they just keep it.
+					target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
+				}
 			} else {
 				s.log("%s\n", "No active players to give Second Chance. Discarding.")
 				// Discard
