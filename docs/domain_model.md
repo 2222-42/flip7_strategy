@@ -162,10 +162,17 @@ Aggregates ensure consistency within boundaries. Invariants are enforced via the
 **Round Aggregate**  
 - Contained Entities/Value Objects: `Players` (with `PlayerHand`), `Deck`, `DiscardPile`  
 - Invariants:  
-  - Initial deal: 1 card each, resolve Actions immediately.  
+  - Initial deal: Sequential starting from Dealer. Actions resolved immediately.
   - Bust on duplicate Number (unless SecondChance).  
   - Ends on no active players or Flip7.  
   - Deck passes left; reshuffle discards if empty (keep player cards).
+  - **Flip Three Rules**:
+    - Draw 3 cards one by one.
+    - If Second Chance drawn: Set aside/use.
+    - If Freeze/FlipThree drawn: Resolve AFTER the 3 draws (if not busted).
+  - **Second Chance Rules**:
+    - If drawn and player already has one: Must give to another active player (Strategy choice).
+    - If no eligible target: Discard.
 
 ### Domain Services
 
