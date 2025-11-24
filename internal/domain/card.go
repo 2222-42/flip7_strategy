@@ -70,8 +70,7 @@ func NewDeck() *Deck {
 	for i := 0; i <= 12; i++ {
 		count := i
 		if i == 0 {
-			count = 1 // Special case for 0? Or maybe 0 doesn't exist? Doc says "0-12".
-			// Let's assume 0 has 1 copy based on doc "0:x1".
+			count = 1 // Card 0 has 1 copy as per game rules ("0:x1").
 		}
 
 		val := NumberValue(i)

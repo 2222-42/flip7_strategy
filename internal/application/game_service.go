@@ -255,13 +255,7 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 				s.log("Action %s queued for after Flip Three.\n", fCard.ActionType)
 				pendingActions = append(pendingActions, fCard)
 
-				// Add to hand? "revealed... resolved AFTER".
-				// Usually action cards are added to hand.
-				// But if we add it now, ProcessCardDraw would trigger resolution.
-				// We should AddCard ONLY (no resolution).
-				// But AddCard checks for Bust/Flip7.
-				// Action cards don't cause bust (unless they are also Number cards? No).
-				// So we just add it.
+				// Add to hand without triggering immediate resolution (since we resolve later)
 				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, fCard)
 
 				// Check Flip 7 with this new card?

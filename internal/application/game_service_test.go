@@ -55,6 +55,10 @@ func TestFlipThreeLogic(t *testing.T) {
 		{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance},
 		{Type: domain.CardTypeNumber, Value: 6},
 	}
+	// Update RemainingCounts to match the rigged deck to avoid inconsistency
+	deck.RemainingCounts = make(map[domain.NumberValue]int)
+	deck.RemainingCounts[5] = 1
+	deck.RemainingCounts[6] = 1
 
 	game.CurrentRound = domain.NewRound(players, p1, deck)
 

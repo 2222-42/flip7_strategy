@@ -32,8 +32,7 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 	// Cautious:
 	// Freeze -> Self (secure points)
 	// FlipThree -> Opponent (avoid risk)
-	// GiveSecondChance -> Teammate? (No teams). Give to weakest player? Or random?
-	// Let's give to the player with lowest score to keep game balanced/prolonged?
+	// GiveSecondChance -> Player with lowest score (keep game balanced)
 
 	if action == domain.ActionFreeze {
 		for _, p := range candidates {
@@ -45,17 +44,27 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 
 	if action == domain.ActionGiveSecondChance {
 		// GiveSecondChance: Give to player with lowest score to prolong game
-		bestTarget := candidates[0] // Default, will be self if no opponents
-		minScore := 10000
+		var bestTarget *domain.Player
+		minScore := -1 // Initialize with -1 to indicate no target selected yet
+
 		for _, p := range candidates {
 			if p.ID != self.ID {
-				if p.TotalScore < minScore {
+				// Skip players who already have a Second Chance card
+				if p.CurrentHand.HasSecondChance() {
+					continue
+				}
+				if minScore == -1 || p.TotalScore < minScore {
 					minScore = p.TotalScore
 					bestTarget = p
 				}
 			}
 		}
-		return bestTarget
+
+		if bestTarget != nil {
+			return bestTarget
+		}
+		// Fallback: if everyone has one or no opponents, give to first candidate (even if they have one, game service handles discard)
+		return candidates[0]
 	}
 
 	// For FlipThree (or if self not available for Freeze), target random opponent
@@ -94,8 +103,7 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 	// Aggressive:
 	// Freeze -> Self
 	// FlipThree -> Opponent
-	// GiveSecondChance -> Random? Or Strongest to keep them in check? (Doesn't make sense)
-	// Give to random.
+	// GiveSecondChance -> Random player
 
 	if action == domain.ActionFreeze {
 		for _, p := range candidates {
@@ -164,17 +172,24 @@ func (s *ProbabilisticStrategy) ChooseTarget(action domain.ActionType, candidate
 	}
 
 	if action == domain.ActionGiveSecondChance {
-		bestTarget := candidates[0] // Default, will be self if no opponents
-		minScore := 10000
+		var bestTarget *domain.Player
+		minScore := -1
+
 		for _, p := range candidates {
 			if p.ID != self.ID { // Only consider opponents
-				if p.TotalScore < minScore {
+				if p.CurrentHand.HasSecondChance() {
+					continue
+				}
+				if minScore == -1 || p.TotalScore < minScore {
 					minScore = p.TotalScore
 					bestTarget = p
 				}
 			}
 		}
-		return bestTarget
+		if bestTarget != nil {
+			return bestTarget
+		}
+		return candidates[0]
 	}
 
 	bestTarget := self

@@ -208,7 +208,7 @@ type StrategyAdvisor interface {
 // E.g., Risk = sum(remaining[existing] / total); if <0.1 or near Flip7, Hit.
 ```
 
-StrategyAdvisor should be designed as StrategyPattern as known as a pattern of Software Design Patter.
+StrategyAdvisor should be designed using the Strategy Pattern, which is a pattern of Software Design.
 
 **DeckFactory**  
 Description: Builds initial deck (94 cards: Numbers per PDF counts, 2x each Modifier, 3x each Action). Supports multiple decks (>18 players).  

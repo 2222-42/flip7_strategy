@@ -38,7 +38,11 @@ func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playe
 
 	for {
 		fmt.Print("Choose action (hit/stay): ")
-		input, _ := s.reader.ReadString('\n')
+		input, err := s.reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			continue
+		}
 		input = strings.TrimSpace(strings.ToLower(input))
 
 		if input == "hit" || input == "h" {
@@ -63,7 +67,11 @@ func (s *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*dom
 
 	for {
 		fmt.Printf("Enter number (1-%d): ", len(candidates))
-		input, _ := s.reader.ReadString('\n')
+		input, err := s.reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			continue
+		}
 		input = strings.TrimSpace(input)
 
 		idx, err := strconv.Atoi(input)

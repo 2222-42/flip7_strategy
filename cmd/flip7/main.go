@@ -3,10 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
-	"time"
 
 	"flip7_strategy/internal/application"
 	"flip7_strategy/internal/domain"
@@ -15,8 +13,6 @@ import (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
 	fmt.Println("Welcome to Flip 7 Strategy!")
 	fmt.Println("Select Mode:")
 	fmt.Println("1. Automatic Play (Sample Game)")

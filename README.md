@@ -26,7 +26,7 @@ This project simulates the "Flip 7" card game, where players push their luck to 
 ## Getting Started
 
 ### Prerequisites
-- Go 1.18 or higher
+- Go 1.23 or higher
 
 ### Running the Game
 To start the application, run the main entry point:

@@ -17,22 +17,11 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 		baseSum += int(val)
 	}
 
-	// Apply modifiers
-	// Apply modifiers according to the current game rule interpretation:
-	// Score = (Sum of number cards + sum of "plus" modifiers) * (product of multipliers) + bonus.
-	// TODO: If the official rule clarifies the order of operations, update this formula and comment. snippet: "Impl: Sum numbers, apply modifiers (x2 first), add bonus."
-	// This is ambiguous. "x2 first" could mean "Apply x2 to the base sum, then add other modifiers".
-	// Let's try: Total = (BaseSum * Multipliers) + AddModifiers + Bonus.
-
 	multiplier := 1
 	addModifiers := 0
 
 	for _, mod := range hand.ModifierCards {
 		switch mod.ModifierType {
-		case ModifierX2:
-			multiplier *= 2
-		case ModifierPlus2:
-			addModifiers += 2
 		case ModifierPlus4:
 			addModifiers += 4
 		case ModifierPlus6:
@@ -44,14 +33,10 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 		}
 	}
 
-	// If "x2 first" means priority:
-	// Maybe it means: Total = (BaseSum * Multiplier) + AddModifiers?
-	// Or maybe it means: Total = (BaseSum + AddModifiers) * Multiplier?
-	// Let's go with (BaseSum + AddModifiers) * Multiplier as it's more standard for "Score = (Points) * Multiplier".
-	// BUT, if the doc says "x2 first", maybe it means x2 applies to the base only?
-	// Let's assume: Total = (BaseSum + AddModifiers) * Multiplier + Bonus.
+	// Calculate total score
+	// Formula: (BaseSum + AddModifiers) * Multiplier + Bonus
 
-	// Wait, Flip 7 Bonus is 15.
+	// Flip 7 bonus: awards 15 points if the player has 7 or more cards.
 	bonus := 0
 	// Check if Flip 7 achieved (7 cards)
 	totalCards := len(hand.RawNumberCards) + len(hand.ModifierCards) + len(hand.ActionCards)
