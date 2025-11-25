@@ -29,6 +29,30 @@ func (s *GameService) RunGame() {
 		s.Game.CurrentRound = domain.NewRound(s.Game.Players, s.Game.Players[s.Game.DealerIndex], deck)
 		s.PlayRound()
 
+		if s.Game.CurrentRound.EndReason == domain.RoundEndReasonAborted {
+			s.log("Game aborted due to empty deck/discard.\n")
+			s.Game.IsCompleted = true
+			break
+		}
+
+		// Move all cards from the round to the discard pile
+		// This includes cards in players' hands and the deck (wait, rule says "Set all cards from the round to the side... When the deck runs out, shuffle all the discarded cards")
+		// Actually, the rule says: "Set all cards from the round to the side. Do not shuffle them back into the deck... When the deck runs out, shuffle all the discarded cards to form a new deck."
+		// So we collect cards from players' hands. What about the rest of the deck? "Pass the remaining cards in the deck to the left" -> The deck persists across rounds.
+		// So we only add the cards used in the round to the discard pile.
+
+		// Collect cards from players' hands
+		for _, p := range s.Game.Players {
+			// Number cards
+			for _, val := range p.CurrentHand.RawNumberCards {
+				s.Game.DiscardPile = append(s.Game.DiscardPile, domain.Card{Type: domain.CardTypeNumber, Value: val})
+			}
+			// Modifier cards
+			s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ModifierCards...)
+			// Action cards
+			s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ActionCards...)
+		}
+
 		// Check for winner
 		for _, p := range s.Game.Players {
 			if p.TotalScore >= 200 {
@@ -41,12 +65,32 @@ func (s *GameService) RunGame() {
 		// Rotate dealer
 		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
 
-		// Reshuffle if deck is low?
-		if len(deck.Cards) < MinDeckSizeBeforeReshuffle {
-			s.log("%s\n", "Reshuffling deck...")
-			deck = domain.NewDeck()
-		}
+		// Update deck reference for the next round
+		// If a reshuffle happened during PlayRound, s.Game.CurrentRound.Deck points to the new deck.
+		// We must update our local 'deck' variable so the next round uses the valid deck.
+		deck = s.Game.CurrentRound.Deck
 	}
+}
+
+// DrawCard handles drawing a card, reshuffling from discard pile if necessary.
+func (s *GameService) DrawCard() (domain.Card, error) {
+	round := s.Game.CurrentRound
+	card, err := round.Deck.Draw()
+	if err == nil {
+		return card, nil
+	}
+
+	// Deck is empty, try to reshuffle
+	if len(s.Game.DiscardPile) == 0 {
+		return domain.Card{}, fmt.Errorf("deck is empty and discard pile is empty")
+	}
+
+	s.log("Deck empty. Reshuffling %d cards from discard pile...\n", len(s.Game.DiscardPile))
+	round.Deck = domain.NewDeckFromCards(s.Game.DiscardPile)
+	s.Game.DiscardPile = []domain.Card{} // Clear discard pile
+
+	// Try drawing again
+	return round.Deck.Draw()
 }
 
 // PlayRound handles a single round.
@@ -71,9 +115,11 @@ func (s *GameService) PlayRound() {
 			continue
 		}
 
-		card, err := round.Deck.Draw()
+		card, err := s.DrawCard()
 		if err != nil {
 			s.log("%s\n", "Deck empty during initial deal!")
+			round.IsEnded = true
+			round.EndReason = domain.RoundEndReasonAborted
 			return
 		}
 		s.log("%s dealt: %v\n", p.Name, card)
@@ -104,10 +150,11 @@ func (s *GameService) PlayRound() {
 				s.RemoveActivePlayer(p)
 			} else {
 				// Hit
-				card, err := round.Deck.Draw()
+				card, err := s.DrawCard()
 				if err != nil {
 					s.log("%s\n", "Deck empty!")
 					round.IsEnded = true
+					round.EndReason = domain.RoundEndReasonAborted
 					return
 				}
 				s.log("%s drew: %v\n", p.Name, card)
@@ -150,6 +197,7 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 				if allHaveSecondChance {
 					s.log("All other active players already have a Second Chance. Discarding card.\n")
 					// Discard
+					s.Game.DiscardPile = append(s.Game.DiscardPile, card)
 				} else {
 					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
 					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
@@ -165,12 +213,17 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 			} else {
 				s.log("%s\n", "No active players to give Second Chance. Discarding.")
 				// Discard
+				s.Game.DiscardPile = append(s.Game.DiscardPile, card)
 			}
 			return // Done processing this card for this player
 		}
 	}
 
-	busted, flip7 := p.CurrentHand.AddCard(card)
+	busted, flip7, discarded := p.CurrentHand.AddCard(card)
+	if len(discarded) > 0 {
+		s.Game.DiscardPile = append(s.Game.DiscardPile, discarded...)
+	}
+
 	if busted {
 		s.log("%s BUSTED!\n", p.Name)
 		s.RemoveActivePlayer(p)
@@ -229,10 +282,11 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 			break
 		}
 
-		fCard, err := round.Deck.Draw()
+		fCard, err := s.DrawCard()
 		if err != nil {
 			s.log("%s\n", "Deck empty during Flip Three!")
 			round.IsEnded = true
+			round.EndReason = domain.RoundEndReasonAborted
 			return
 		}
 		s.log("%s forced draw (%d/3): %v\n", target.Name, i+1, fCard)

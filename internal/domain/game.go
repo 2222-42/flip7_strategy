@@ -10,6 +10,7 @@ type RoundEndReason string
 const (
 	RoundEndReasonNoActivePlayers RoundEndReason = "no_active_players"
 	RoundEndReasonFlip7           RoundEndReason = "flip7_achieved"
+	RoundEndReasonAborted         RoundEndReason = "aborted"
 )
 
 // Round represents a single round of play.
@@ -68,6 +69,7 @@ type Game struct {
 	DealerIndex  int       `json:"dealer_index"`
 	IsCompleted  bool      `json:"is_completed"`
 	Winner       *Player   `json:"winner"`
+	DiscardPile  []Card    `json:"discard_pile"`
 }
 
 // NewGame creates a new game.

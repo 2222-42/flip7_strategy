@@ -142,3 +142,20 @@ func (d *Deck) EstimateHitRisk(handNumbers map[NumberValue]struct{}) float64 {
 
 	return float64(riskCards) / float64(total)
 }
+
+// NewDeckFromCards creates a new deck from a list of cards (e.g., discard pile).
+func NewDeckFromCards(cards []Card) *Deck {
+	counts := make(map[NumberValue]int)
+	for _, c := range cards {
+		if c.Type == CardTypeNumber {
+			counts[c.Value]++
+		}
+	}
+
+	d := &Deck{
+		Cards:           cards,
+		RemainingCounts: counts,
+	}
+	d.Shuffle()
+	return d
+}
