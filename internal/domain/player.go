@@ -92,6 +92,7 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool, discarded []Ca
 			h.Status = HandStatusBusted
 			// Add the busting card to the hand so it stays on the table until round end
 			h.RawNumberCards = append(h.RawNumberCards, card.Value)
+			h.NumberCards[card.Value] = struct{}{}
 			return true, false, nil
 		}
 		h.NumberCards[card.Value] = struct{}{}

@@ -35,11 +35,8 @@ func (s *GameService) RunGame() {
 			break
 		}
 
-		// Move all cards from the round to the discard pile
-		// This includes cards in players' hands and the deck (wait, rule says "Set all cards from the round to the side... When the deck runs out, shuffle all the discarded cards")
-		// Actually, the rule says: "Set all cards from the round to the side. Do not shuffle them back into the deck... When the deck runs out, shuffle all the discarded cards to form a new deck."
-		// So we collect cards from players' hands. What about the rest of the deck? "Pass the remaining cards in the deck to the left" -> The deck persists across rounds.
-		// So we only add the cards used in the round to the discard pile.
+		// Move all cards from players' hands to the discard pile.
+		// The deck persists across rounds and is passed to the next dealer.
 
 		// Collect cards from players' hands
 		for _, p := range s.Game.Players {
@@ -117,7 +114,7 @@ func (s *GameService) PlayRound() {
 
 		card, err := s.DrawCard()
 		if err != nil {
-			s.log("%s\n", "Deck empty during initial deal!")
+			s.log("%s\n", "Deck and discard pile empty during initial deal!")
 			round.IsEnded = true
 			round.EndReason = domain.RoundEndReasonAborted
 			return
@@ -152,7 +149,7 @@ func (s *GameService) PlayRound() {
 				// Hit
 				card, err := s.DrawCard()
 				if err != nil {
-					s.log("%s\n", "Deck empty!")
+					s.log("%s\n", "Deck and discard pile empty!")
 					round.IsEnded = true
 					round.EndReason = domain.RoundEndReasonAborted
 					return
@@ -249,9 +246,7 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 	switch card.ActionType {
 	case domain.ActionFreeze:
 		candidates := []*domain.Player{}
-		for _, ap := range round.ActivePlayers {
-			candidates = append(candidates, ap)
-		}
+		candidates = append(candidates, round.ActivePlayers...)
 		target := p.Strategy.ChooseTarget(domain.ActionFreeze, candidates, p)
 		s.log("%s uses Freeze on %s\n", p.Name, target.Name)
 
@@ -261,9 +256,7 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 
 	case domain.ActionFlipThree:
 		candidates := []*domain.Player{}
-		for _, ap := range round.ActivePlayers {
-			candidates = append(candidates, ap)
-		}
+		candidates = append(candidates, round.ActivePlayers...)
 		target := p.Strategy.ChooseTarget(domain.ActionFlipThree, candidates, p)
 		s.log("%s uses Flip Three on %s\n", p.Name, target.Name)
 		s.ExecuteFlipThree(target)
@@ -284,7 +277,7 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 
 		fCard, err := s.DrawCard()
 		if err != nil {
-			s.log("%s\n", "Deck empty during Flip Three!")
+			s.log("%s\n", "Deck and discard pile empty during Flip Three!")
 			round.IsEnded = true
 			round.EndReason = domain.RoundEndReasonAborted
 			return
