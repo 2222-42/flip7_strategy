@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"fmt"
 	"testing"
 
 	"flip7_strategy/internal/domain"
@@ -37,13 +38,18 @@ func TestDetermineWinners(t *testing.T) {
 			scores:         []int{220, 220, 210},
 			expectedWinner: []string{"P1", "P2"},
 		},
+		{
+			name:           "Three-way tie at exactly 200",
+			scores:         []int{200, 200, 200},
+			expectedWinner: []string{"P1", "P2", "P3"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			players := make([]*domain.Player, len(tt.scores))
 			for i, score := range tt.scores {
-				name := "P" + string(rune('1'+i)) // P1, P2, ...
+				name := fmt.Sprintf("P%d", i+1)
 				p := domain.NewPlayer(name, nil)
 				p.TotalScore = score
 				players[i] = p
