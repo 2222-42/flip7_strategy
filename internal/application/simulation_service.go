@@ -17,7 +17,7 @@ func NewSimulationService() *SimulationService {
 func (s *SimulationService) RunMonteCarlo(n int) {
 	fmt.Printf("Running %d games (Counting Mode)...\n", n)
 
-	wins := make(map[string]int)
+	wins := make(map[string]float64)
 
 	// Define strategies to test
 	// We need to create fresh players for each game to reset state,
@@ -36,14 +36,17 @@ func (s *SimulationService) RunMonteCarlo(n int) {
 		svc.Silent = true // Run silently
 		svc.RunGame()
 
-		if game.Winner != nil {
-			wins[game.Winner.Strategy.Name()]++
+		if len(game.Winners) > 0 {
+			points := 1.0 / float64(len(game.Winners))
+			for _, winner := range game.Winners {
+				wins[winner.Strategy.Name()] += points
+			}
 		}
 	}
 
 	fmt.Println("\n--- Simulation Results ---")
 	for name, count := range wins {
-		percentage := float64(count) / float64(n) * 100
-		fmt.Printf("%s: %d wins (%.2f%%)\n", name, count, percentage)
+		percentage := count / float64(n) * 100
+		fmt.Printf("%s: %.2f wins (%.2f%%)\n", name, count, percentage)
 	}
 }

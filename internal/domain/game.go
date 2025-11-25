@@ -68,7 +68,7 @@ type Game struct {
 	CurrentRound *Round    `json:"current_round"`
 	DealerIndex  int       `json:"dealer_index"`
 	IsCompleted  bool      `json:"is_completed"`
-	Winner       *Player   `json:"winner"`
+	Winners      []*Player `json:"winners"`
 	DiscardPile  []Card    `json:"discard_pile"`
 }
 
@@ -78,4 +78,27 @@ func NewGame(players []*Player) *Game {
 		ID:      uuid.New(),
 		Players: players,
 	}
+}
+
+// DetermineWinners checks if any player has >= 200 points and returns the winner(s).
+// If multiple players have >= 200, the one with the highest score wins.
+// If there's a tie for the highest score, all tied players are returned.
+// Returns nil if no player has reached 200 points.
+func (g *Game) DetermineWinners() []*Player {
+	var candidates []*Player
+	highestScore := 0
+
+	// Find players with >= 200 points
+	for _, p := range g.Players {
+		if p.TotalScore >= 200 {
+			if p.TotalScore > highestScore {
+				highestScore = p.TotalScore
+				candidates = []*Player{p}
+			} else if p.TotalScore == highestScore {
+				candidates = append(candidates, p)
+			}
+		}
+	}
+
+	return candidates
 }

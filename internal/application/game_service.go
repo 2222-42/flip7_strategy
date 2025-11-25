@@ -51,12 +51,11 @@ func (s *GameService) RunGame() {
 		}
 
 		// Check for winner
-		for _, p := range s.Game.Players {
-			if p.TotalScore >= 200 {
-				s.Game.IsCompleted = true
-				s.Game.Winner = p
-				break // First to 200 wins (or handle tie-break?)
-			}
+		winners := s.Game.DetermineWinners()
+		if len(winners) > 0 {
+			s.Game.IsCompleted = true
+			s.Game.Winners = winners
+			break
 		}
 
 		// Rotate dealer
