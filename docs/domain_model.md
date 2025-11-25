@@ -144,7 +144,7 @@ type Game struct {
     CurrentRound  int `json:"current_round"`
     Rounds        []Round `json:"rounds"`
     IsCompleted   bool `json:"is_completed"`
-    Winner        *Player `json:"winner"`
+    Winners       []*Player `json:"winners"`
 }
 ```
 

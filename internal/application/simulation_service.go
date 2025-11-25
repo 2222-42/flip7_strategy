@@ -36,8 +36,10 @@ func (s *SimulationService) RunMonteCarlo(n int) {
 		svc.Silent = true // Run silently
 		svc.RunGame()
 
-		if game.Winner != nil {
-			wins[game.Winner.Strategy.Name()]++
+		if len(game.Winners) > 0 {
+			for _, winner := range game.Winners {
+				wins[winner.Strategy.Name()]++
+			}
 		}
 	}
 

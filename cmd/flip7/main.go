@@ -72,8 +72,11 @@ func runCounting() {
 }
 
 func printWinner(game *domain.Game) {
-	if game.Winner != nil {
-		fmt.Printf("\nGame Over! Winner: %s with %d points!\n", game.Winner.Name, game.Winner.TotalScore)
+	if len(game.Winners) > 0 {
+		fmt.Printf("\nGame Over! Winners:\n")
+		for _, winner := range game.Winners {
+			fmt.Printf("- %s with %d points!\n", winner.Name, winner.TotalScore)
+		}
 	} else {
 		fmt.Println("\nGame Over! No winner?")
 	}
