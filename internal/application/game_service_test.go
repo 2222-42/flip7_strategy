@@ -100,3 +100,58 @@ func TestFreezeLogic(t *testing.T) {
 		t.Errorf("Expected P1 to bank 10 points, got %d", p1.TotalScore)
 	}
 }
+
+func TestReshuffleLogic(t *testing.T) {
+	// Setup
+	p1 := domain.NewPlayer("P1", &MockStrategy{})
+	players := []*domain.Player{p1}
+	game := domain.NewGame(players)
+	svc := application.NewGameService(game)
+	svc.Silent = true
+
+	// Initialize DiscardPile with known cards
+	discardedCards := []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 1},
+		{Type: domain.CardTypeNumber, Value: 2},
+	}
+	game.DiscardPile = discardedCards
+
+	// Initialize Deck with 1 card
+	deck := domain.NewDeck()
+	deck.Cards = []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 3},
+	}
+	deck.RemainingCounts = map[domain.NumberValue]int{3: 1}
+
+	game.CurrentRound = domain.NewRound(players, p1, deck)
+
+	// 1. Draw the last card from the deck
+	card1, err := svc.DrawCard()
+	if err != nil {
+		t.Fatalf("Expected successful draw, got error: %v", err)
+	}
+	if card1.Value != 3 {
+		t.Errorf("Expected card value 3, got %d", card1.Value)
+	}
+
+	// 2. Deck is now empty. Draw again -> should trigger reshuffle from discard pile
+	card2, err := svc.DrawCard()
+	if err != nil {
+		t.Fatalf("Expected successful draw after reshuffle, got error: %v", err)
+	}
+
+	// Verify card comes from discard pile (1 or 2)
+	if card2.Value != 1 && card2.Value != 2 {
+		t.Errorf("Expected card value 1 or 2, got %d", card2.Value)
+	}
+
+	// Verify DiscardPile is empty
+	if len(game.DiscardPile) != 0 {
+		t.Errorf("Expected DiscardPile to be empty, got %d cards", len(game.DiscardPile))
+	}
+
+	// Verify Deck has the remaining card
+	if len(game.CurrentRound.Deck.Cards) != 1 {
+		t.Errorf("Expected Deck to have 1 remaining card, got %d", len(game.CurrentRound.Deck.Cards))
+	}
+}

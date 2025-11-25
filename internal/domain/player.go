@@ -54,9 +54,10 @@ func NewPlayerHand() *PlayerHand {
 
 // AddCard adds a card to the hand and checks for bust.
 // Returns busted=true if the card caused a bust (duplicate number).
-func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool) {
+// Returns discarded cards if Second Chance was used.
+func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool, discarded []Card) {
 	if h.Status != HandStatusActive {
-		return false, false
+		return false, false, nil
 	}
 
 	switch card.Type {
@@ -77,13 +78,22 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool) {
 				if hasSecondChance {
 					// Use Second Chance: Discard the duplicate (don't add it), discard the Second Chance card.
 					h.SecondChanceUsed = true
+
+					// Collect discarded cards
+					scCard := h.ActionCards[scIndex]
+					discarded = append(discarded, scCard)
+					discarded = append(discarded, card)
+
 					// Remove the Second Chance card
 					h.ActionCards = append(h.ActionCards[:scIndex], h.ActionCards[scIndex+1:]...)
-					return false, false
+					return false, false, discarded
 				}
 			}
 			h.Status = HandStatusBusted
-			return true, false
+			// Add the busting card to the hand so it stays on the table until round end
+			h.RawNumberCards = append(h.RawNumberCards, card.Value)
+			h.NumberCards[card.Value] = struct{}{}
+			return true, false, nil
 		}
 		h.NumberCards[card.Value] = struct{}{}
 		h.RawNumberCards = append(h.RawNumberCards, card.Value)
@@ -99,10 +109,10 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool) {
 	// Flip 7 condition: triggers when the player has 7 or more cards in hand (of any type) without busting.
 	totalCards := len(h.RawNumberCards) + len(h.ModifierCards) + len(h.ActionCards)
 	if totalCards >= 7 && h.Status == HandStatusActive {
-		return false, true
+		return false, true, nil
 	}
 
-	return false, false
+	return false, false, nil
 }
 
 // Player represents a participant in the game.
