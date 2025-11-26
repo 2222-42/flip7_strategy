@@ -26,6 +26,7 @@ func (s *GameService) RunGame() {
 	deck := domain.NewDeck()
 
 	for !s.Game.IsCompleted {
+		s.Game.RoundCount++
 		s.Game.CurrentRound = domain.NewRound(s.Game.Players, s.Game.Players[s.Game.DealerIndex], deck)
 		s.PlayRound()
 

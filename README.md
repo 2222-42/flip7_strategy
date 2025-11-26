@@ -42,7 +42,10 @@ Welcome to Flip 7 Strategy!
 Select Mode:
 1. Automatic Play (Sample Game)
 2. Participating (Interactive)
-3. Counting (Monte Carlo Simulation)
+4. Optimize Heuristic Strategy
+5. Single Player Optimization (Fastest to 200)
+6. Multiplayer Evaluation (1-5 Players)
+7. Strategy Combination Evaluation (1vs1)
 ```
 
 ### Modes Explained
@@ -50,6 +53,14 @@ Select Mode:
 - **Automatic Play**: Runs a single game with verbose logging. Great for understanding the game flow and debugging.
 - **Participating**: You take the seat of the third player. Follow the prompts to `hit`, `stay`, or choose targets for action cards.
 - **Counting**: Runs 1,000 silent games and outputs the win statistics. Use this to see which strategy is currently the strongest.
+- **Optimize Heuristic Strategy**: Finds the optimal stopping threshold for the Heuristic strategy.
+- **Single Player Optimization**: Calculates average and median rounds to reach 200 points for each strategy.
+- **Multiplayer Evaluation**: Simulates games with 1 to 5 players to evaluate strategy performance in different group sizes.
+- **Strategy Combination Evaluation**: Runs 1vs1 matchups between all unique pairs of strategies.
+
+## Documentation
+
+- [Strategy Evaluation Results](docs/strategy_evaluation.md): Detailed analysis of strategy performance, including single-player speed and multiplayer win rates.
 
 ## Project Structure
 

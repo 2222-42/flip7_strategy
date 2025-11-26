@@ -4,6 +4,7 @@ import (
 	"flip7_strategy/internal/domain"
 	"flip7_strategy/internal/domain/strategy"
 	"fmt"
+	"sort"
 )
 
 const MinDeckSizeBeforeReshuffle = 10
@@ -99,4 +100,159 @@ func (s *SimulationService) RunHeuristicOptimization(gamesPerThreshold int) {
 		}
 	}
 	fmt.Printf("\nBest Threshold: %d (Win Rate: %.2f%%)\n", bestThreshold, maxWinRate)
+}
+
+func (s *SimulationService) RunSinglePlayerOptimization(n int) {
+	fmt.Printf("Running Single Player Optimization (%d games per strategy)...\n", n)
+	fmt.Println("Strategy | Avg Rounds | Median Rounds")
+	fmt.Println("---------|------------|--------------")
+
+	strategies := []struct {
+		Name  string
+		Strat domain.Strategy
+	}{
+		{"Cautious", &strategy.CautiousStrategy{}},
+		{"Aggressive", &strategy.AggressiveStrategy{}},
+		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
+		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
+	}
+
+	for _, strat := range strategies {
+		var rounds []int
+		for i := 0; i < n; i++ {
+			p := domain.NewPlayer("Player", strat.Strat)
+			players := []*domain.Player{p}
+			game := domain.NewGame(players)
+			svc := NewGameService(game)
+			svc.Silent = true
+			svc.RunGame()
+
+			// Check if player reached 200 points
+			if p.TotalScore >= 200 {
+				rounds = append(rounds, game.RoundCount)
+			}
+		}
+
+		if len(rounds) == 0 {
+			fmt.Printf("%-15s | N/A | N/A\n", strat.Name)
+			continue
+		}
+
+		sum := 0
+		for _, r := range rounds {
+			sum += r
+		}
+		avg := float64(sum) / float64(len(rounds))
+
+		sort.Ints(rounds)
+		var median float64
+		if len(rounds)%2 == 0 {
+			median = float64(rounds[len(rounds)/2-1]+rounds[len(rounds)/2]) / 2.0
+		} else {
+			median = float64(rounds[len(rounds)/2])
+		}
+
+		fmt.Printf("%-15s | %10.2f | %13.2f\n", strat.Name, avg, median)
+	}
+}
+
+func (s *SimulationService) RunMultiplayerEvaluation(n int) {
+	fmt.Printf("Running Multiplayer Evaluation (%d games per player count)...\n", n)
+
+	// Strategies pool
+	strats := []domain.Strategy{
+		&strategy.CautiousStrategy{},
+		&strategy.AggressiveStrategy{},
+		&strategy.ProbabilisticStrategy{},
+		strategy.NewHeuristicStrategy(27),
+	}
+
+	for playerCount := 1; playerCount <= 5; playerCount++ {
+		fmt.Printf("\n--- %d Players ---\n", playerCount)
+		wins := make(map[string]float64)
+
+		for i := 0; i < n; i++ {
+			var players []*domain.Player
+			for j := 0; j < playerCount; j++ {
+				// Assign strategies in round-robin or random?
+				// Let's do round-robin from the pool
+				strat := strats[j%len(strats)]
+				name := fmt.Sprintf("P%d-%s", j+1, strat.Name())
+				players = append(players, domain.NewPlayer(name, strat))
+			}
+
+			game := domain.NewGame(players)
+			svc := NewGameService(game)
+			svc.Silent = true
+			svc.RunGame()
+
+			if len(game.Winners) > 0 {
+				points := 1.0 / float64(len(game.Winners))
+				for _, winner := range game.Winners {
+					// We want to aggregate by strategy name, not player name
+					// Player name includes strategy name, so we can parse or just use strategy name directly if we had access.
+					// But we constructed the player with the strategy.
+					// Let's just use the strategy name from the winner's strategy instance.
+					wins[winner.Strategy.Name()] += points
+				}
+			}
+		}
+
+		for name, count := range wins {
+			percentage := count / float64(n) * 100
+			fmt.Printf("%s: %.2f wins (%.2f%%)\n", name, count, percentage)
+		}
+	}
+}
+
+func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
+	fmt.Printf("Running Strategy Combination Evaluation (%d games per pair)...\n", n)
+
+	strategies := []struct {
+		Name  string
+		Strat domain.Strategy
+	}{
+		{"Cautious", &strategy.CautiousStrategy{}},
+		{"Aggressive", &strategy.AggressiveStrategy{}},
+		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
+		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
+	}
+
+	for i := 0; i < len(strategies); i++ {
+		for j := i + 1; j < len(strategies); j++ {
+			s1 := strategies[i]
+			s2 := strategies[j]
+
+			fmt.Printf("\n--- %s vs %s ---\n", s1.Name, s2.Name)
+			wins := make(map[string]float64)
+
+			for k := 0; k < n; k++ {
+				// Create fresh players for each game
+				p1 := domain.NewPlayer(s1.Name, s1.Strat)
+				p2 := domain.NewPlayer(s2.Name, s2.Strat)
+				players := []*domain.Player{p1, p2}
+
+				game := domain.NewGame(players)
+				svc := NewGameService(game)
+				svc.Silent = true
+				svc.RunGame()
+
+				if len(game.Winners) > 0 {
+					points := 1.0 / float64(len(game.Winners))
+					for _, winner := range game.Winners {
+						wins[winner.Name] += points
+					}
+				}
+			}
+
+			// Print results for this pair
+			count1 := wins[s1.Name]
+			pct1 := count1 / float64(n) * 100
+			count2 := wins[s2.Name]
+			pct2 := count2 / float64(n) * 100
+
+			fmt.Printf("%s: %.2f wins (%.2f%%)\n", s1.Name, count1, pct1)
+			fmt.Printf("%s: %.2f wins (%.2f%%)\n", s2.Name, count2, pct2)
+		}
+	}
 }

@@ -70,6 +70,7 @@ type Game struct {
 	IsCompleted  bool      `json:"is_completed"`
 	Winners      []*Player `json:"winners"`
 	DiscardPile  []Card    `json:"discard_pile"`
+	RoundCount   int       `json:"round_count"`
 }
 
 // NewGame creates a new game.
