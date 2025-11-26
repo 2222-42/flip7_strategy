@@ -36,4 +36,4 @@ jobs:
       run: go tool cover -func=coverage.out
 
     - name: Build
-      run: go build -v ./cmd/biblog
+      run: go build -v ./cmd/flip7
