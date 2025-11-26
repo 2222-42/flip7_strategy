@@ -18,10 +18,11 @@ func main() {
 	fmt.Println("1. Automatic Play (Sample Game)")
 	fmt.Println("2. Participating (Interactive)")
 	fmt.Println("3. Counting (Monte Carlo Simulation)")
-	fmt.Println("4. Optimize Heuristic Strategy")
+	fmt.Println("5. Single Player Optimization (Fastest to 200)")
+	fmt.Println("6. Multiplayer Evaluation (1-5 Players)")
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter choice (1-4): ")
+	fmt.Print("Enter choice (1-6): ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -34,6 +35,10 @@ func main() {
 		runCounting()
 	case "4":
 		runOptimization()
+	case "5":
+		runSinglePlayerOptimization()
+	case "6":
+		runMultiplayerEvaluation()
 	default:
 		fmt.Println("Invalid choice. Defaulting to Automatic.")
 		runAutomatic()
@@ -78,6 +83,18 @@ func runOptimization() {
 	fmt.Println("\n--- Optimization Mode ---")
 	sim := application.NewSimulationService()
 	sim.RunHeuristicOptimization(500) // Run 500 games per threshold
+}
+
+func runSinglePlayerOptimization() {
+	fmt.Println("\n--- Single Player Optimization ---")
+	sim := application.NewSimulationService()
+	sim.RunSinglePlayerOptimization(1000)
+}
+
+func runMultiplayerEvaluation() {
+	fmt.Println("\n--- Multiplayer Evaluation ---")
+	sim := application.NewSimulationService()
+	sim.RunMultiplayerEvaluation(1000)
 }
 
 func printWinner(game *domain.Game) {
