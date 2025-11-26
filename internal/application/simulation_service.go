@@ -216,3 +216,58 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 		}
 	}
 }
+
+func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
+	fmt.Printf("Running Strategy Combination Evaluation (%d games per pair)...\n", n)
+
+	strategies := []struct {
+		Name  string
+		Strat domain.Strategy
+	}{
+		{"Cautious", &strategy.CautiousStrategy{}},
+		{"Aggressive", &strategy.AggressiveStrategy{}},
+		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
+		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
+	}
+
+	for i := 0; i < len(strategies); i++ {
+		for j := i + 1; j < len(strategies); j++ {
+			s1 := strategies[i]
+			s2 := strategies[j]
+
+			fmt.Printf("\n--- %s vs %s ---\n", s1.Name, s2.Name)
+			wins := make(map[string]float64)
+
+			for k := 0; k < n; k++ {
+				// Create fresh players for each game
+				p1 := domain.NewPlayer(s1.Name, s1.Strat)
+				p2 := domain.NewPlayer(s2.Name, s2.Strat)
+				players := []*domain.Player{p1, p2}
+
+				game := domain.NewGame(players)
+				svc := NewGameService(game)
+				svc.Silent = true
+				svc.RunGame()
+
+				if len(game.Winners) > 0 {
+					points := 1.0 / float64(len(game.Winners))
+					for _, winner := range game.Winners {
+						// Use the strategy name from our struct to ensure consistency
+						// winner.Strategy.Name() might differ slightly (e.g. Heuristic-27) but should be close.
+						// Let's map back to our names based on player name or just use winner.Name since we set it to strat name.
+						wins[winner.Name] += points
+					}
+				}
+			}
+
+			// Print results for this pair
+			count1 := wins[s1.Name]
+			pct1 := count1 / float64(n) * 100
+			count2 := wins[s2.Name]
+			pct2 := count2 / float64(n) * 100
+
+			fmt.Printf("%s: %.2f wins (%.2f%%)\n", s1.Name, count1, pct1)
+			fmt.Printf("%s: %.2f wins (%.2f%%)\n", s2.Name, count2, pct2)
+		}
+	}
+}
