@@ -18,9 +18,10 @@ func main() {
 	fmt.Println("1. Automatic Play (Sample Game)")
 	fmt.Println("2. Participating (Interactive)")
 	fmt.Println("3. Counting (Monte Carlo Simulation)")
+	fmt.Println("4. Optimize Heuristic Strategy")
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter choice (1-3): ")
+	fmt.Print("Enter choice (1-4): ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -31,6 +32,8 @@ func main() {
 		runInteractive()
 	case "3":
 		runCounting()
+	case "4":
+		runOptimization()
 	default:
 		fmt.Println("Invalid choice. Defaulting to Automatic.")
 		runAutomatic()
@@ -69,6 +72,12 @@ func runCounting() {
 	fmt.Println("\n--- Counting Mode ---")
 	sim := application.NewSimulationService()
 	sim.RunMonteCarlo(1000) // Run 1000 games
+}
+
+func runOptimization() {
+	fmt.Println("\n--- Optimization Mode ---")
+	sim := application.NewSimulationService()
+	sim.RunHeuristicOptimization(500) // Run 500 games per threshold
 }
 
 func printWinner(game *domain.Game) {

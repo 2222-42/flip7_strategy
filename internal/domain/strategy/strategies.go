@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"flip7_strategy/internal/domain"
+	"fmt"
 	"math/rand"
 )
 
@@ -130,35 +131,11 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 	return self
 }
 
-// ProbabilisticStrategy uses expected value (simplified).
-type ProbabilisticStrategy struct{}
+// CommonTargetChooser implements shared target selection logic.
+type CommonTargetChooser struct{}
 
-func (s *ProbabilisticStrategy) Name() string {
-	return "Probabilistic"
-}
-
-func (s *ProbabilisticStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
-	risk := deck.EstimateHitRisk(hand.NumberCards)
-	maxOpponentScore := 0
-	for _, p := range otherPlayers {
-		if p.TotalScore > maxOpponentScore {
-			maxOpponentScore = p.TotalScore
-		}
-	}
-	threshold := 0.20
-	if playerScore < maxOpponentScore-50 {
-		threshold = 0.40
-	} else if playerScore > 180 {
-		threshold = 0.05
-	}
-	if risk > threshold {
-		return domain.TurnChoiceStay
-	}
-	return domain.TurnChoiceHit
-}
-
-func (s *ProbabilisticStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
-	// Probabilistic:
+func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+	// Shared logic:
 	// Freeze -> Self.
 	// FlipThree -> Leader opponent.
 	// GiveSecondChance -> Weakest opponent (least threat).
@@ -212,4 +189,61 @@ func (s *ProbabilisticStrategy) ChooseTarget(action domain.ActionType, candidate
 	}
 
 	return bestTarget
+}
+
+// ProbabilisticStrategy uses expected value (simplified).
+type ProbabilisticStrategy struct {
+	CommonTargetChooser
+}
+
+func (s *ProbabilisticStrategy) Name() string {
+	return "Probabilistic"
+}
+
+func (s *ProbabilisticStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	risk := deck.EstimateHitRisk(hand.NumberCards)
+	maxOpponentScore := 0
+	for _, p := range otherPlayers {
+		if p.TotalScore > maxOpponentScore {
+			maxOpponentScore = p.TotalScore
+		}
+	}
+	threshold := 0.20
+	if playerScore < maxOpponentScore-50 {
+		threshold = 0.40
+	} else if playerScore > 180 {
+		threshold = 0.05
+	}
+	if risk > threshold {
+		return domain.TurnChoiceStay
+	}
+	return domain.TurnChoiceHit
+}
+
+const DefaultHeuristicThreshold = 27
+
+// HeuristicStrategy stops when sum of number cards >= Threshold.
+type HeuristicStrategy struct {
+	CommonTargetChooser
+	Threshold int
+}
+
+func NewHeuristicStrategy(threshold int) *HeuristicStrategy {
+	return &HeuristicStrategy{Threshold: threshold}
+}
+
+func (s *HeuristicStrategy) Name() string {
+	return fmt.Sprintf("Heuristic-%d", s.Threshold)
+}
+
+func (s *HeuristicStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	sum := 0
+	for val := range hand.NumberCards {
+		sum += int(val)
+	}
+
+	if sum >= s.Threshold {
+		return domain.TurnChoiceStay
+	}
+	return domain.TurnChoiceHit
 }
