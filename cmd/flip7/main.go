@@ -18,6 +18,7 @@ func main() {
 	fmt.Println("1. Automatic Play (Sample Game)")
 	fmt.Println("2. Participating (Interactive)")
 	fmt.Println("3. Counting (Monte Carlo Simulation)")
+	fmt.Println("4. Optimize Heuristic Strategy")
 	fmt.Println("5. Single Player Optimization (Fastest to 200)")
 	fmt.Println("6. Multiplayer Evaluation (1-5 Players)")
 	fmt.Println("7. Strategy Combination Evaluation (1vs1)")

@@ -4,6 +4,7 @@ import (
 	"flip7_strategy/internal/domain"
 	"flip7_strategy/internal/domain/strategy"
 	"fmt"
+	"sort"
 )
 
 const MinDeckSizeBeforeReshuffle = 10
@@ -143,25 +144,12 @@ func (s *SimulationService) RunSinglePlayerOptimization(n int) {
 		}
 		avg := float64(sum) / float64(len(rounds))
 
-		// Calculate median
-		// Simple bubble sort for median (n is small enough or we can implement sort)
-		// Or just use a quick sort implementation or import sort.
-		// Let's import sort.
-		// Wait, imports are at the top. I can't easily add imports with replace_file_content unless I replace the whole file or use multi_replace.
-		// I'll use a simple selection sort here since n is likely 1000-ish, O(n^2) is fine for simulation or just implement a quick helper.
-		// Actually, let's just use a simple loop to find median or just average for now if sort is hard.
-		// But the requirement says "median".
-		// I will use a simple bubble sort for now, it's easy to write inline.
-		for i := 0; i < len(rounds)-1; i++ {
-			for j := 0; j < len(rounds)-i-1; j++ {
-				if rounds[j] > rounds[j+1] {
-					rounds[j], rounds[j+1] = rounds[j+1], rounds[j]
-				}
-			}
-		}
-		median := float64(rounds[len(rounds)/2])
+		sort.Ints(rounds)
+		var median float64
 		if len(rounds)%2 == 0 {
 			median = float64(rounds[len(rounds)/2-1]+rounds[len(rounds)/2]) / 2.0
+		} else {
+			median = float64(rounds[len(rounds)/2])
 		}
 
 		fmt.Printf("%-15s | %10.2f | %13.2f\n", strat.Name, avg, median)
@@ -252,9 +240,6 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 				if len(game.Winners) > 0 {
 					points := 1.0 / float64(len(game.Winners))
 					for _, winner := range game.Winners {
-						// Use the strategy name from our struct to ensure consistency
-						// winner.Strategy.Name() might differ slightly (e.g. Heuristic-27) but should be close.
-						// Let's map back to our names based on player name or just use winner.Name since we set it to strat name.
 						wins[winner.Name] += points
 					}
 				}

@@ -157,45 +157,54 @@ func TestReshuffleLogic(t *testing.T) {
 }
 
 func TestRoundCountIncrement(t *testing.T) {
+	// We want to verify that RunGame increments RoundCount.
+	// To do this without running a long game, we can use a rigged deck that ensures a quick win.
+	// P1 needs 200 points.
+	// Round 1: P1 draws 200 points worth of cards, stays, wins.
+	// Game should end. RoundCount should be 1.
+
 	p1 := domain.NewPlayer("P1", &MockStrategy{DecideResult: domain.TurnChoiceStay})
 	players := []*domain.Player{p1}
 	game := domain.NewGame(players)
 	svc := application.NewGameService(game)
 	svc.Silent = true
 
-	// Force game to end after 2 rounds
-	// We can't easily control the loop in RunGame without mocking more internals or using a callback.
-	// But we can check if RoundCount is incremented after a single PlayRound call if we manually call it?
-	// No, RunGame increments it.
-	// Let's just run a short game. P1 stays immediately.
-	// Round 1: P1 stays. Score calculated.
-	// If score >= 200, game ends.
-	// Let's give P1 enough points to win in 2 rounds.
-	// Round 1: P1 has 0 points. Stays. Banks 0.
-	// Round 2: P1 has 0 points. Stays. Banks 0.
-	// This will loop forever.
-	// We need P1 to win.
-	// Let's give P1 a high score initially? No, NewGame resets? No, NewGame takes players.
-	p1.TotalScore = 150
-	// Round 1: P1 draws? No, initial deal.
-	// MockStrategy stays.
-	// P1 gets cards in initial deal.
-	// Let's rig the deck to give P1 points.
-	deck := domain.NewDeck()
-	// Card 1: 50 points.
-	deck.Cards = []domain.Card{{Type: domain.CardTypeNumber, Value: 50}}
-	deck.RemainingCounts = map[domain.NumberValue]int{50: 1}
+	// Rig the deck for the first round
+	// Note: RunGame creates a NEW deck for the first round.
+	// We cannot easily inject a pre-configured deck into RunGame's first round because it calls domain.NewDeck().
+	// However, we can modify the GameService to accept a DeckFactory or similar, OR we can rely on the fact that
+	// if we can't rig the deck easily, we might need to test PlayRound directly or accept that RunGame is hard to test deterministically without DI.
 
-	// We need to inject this deck? RunGame creates a new deck.
-	// We can't easily inject the deck into RunGame.
-	// However, we can check if RoundCount is 0 initially.
-	if game.RoundCount != 0 {
-		t.Errorf("Expected RoundCount to be 0, got %d", game.RoundCount)
-	}
+	// BUT, we can check if RoundCount increments by manually running PlayRound loop?
+	// The PR comment suggested: "Add a test that runs a complete game and verifies final RoundCount"
+	// Let's try to run a game where P1 wins quickly.
+	// Since we can't rig the deck in RunGame easily (it calls NewDeck), we might have to rely on probability or just test that it's NOT 0 after a game.
+	// A better approach for this specific test might be to manually set up the game state as if it were inside RunGame loop.
 
-	// We can manually simulate the loop content to verify increment.
-	game.RoundCount++
+	// Actually, let's just test that PlayRound doesn't reset it, and we can infer RunGame works if we trust the loop.
+	// But to satisfy the reviewer, let's try to make a test that runs RunGame.
+
+	// If we can't rig the deck, maybe we can rig the player?
+	// If P1 starts with 200 points?
+	// NewGame takes players.
+	p1.TotalScore = 200
+	// RunGame loop checks IsCompleted.
+	// If P1 has 200, DetermineWinners will find him.
+	// But RunGame loop condition is !s.Game.IsCompleted.
+	// Inside loop:
+	// 1. NewRound
+	// 2. PlayRound
+	// 3. Check winners.
+
+	// So if P1 has 200, PlayRound runs once, then winners found, loop breaks.
+	// RoundCount should be 1.
+
+	svc.RunGame()
+
 	if game.RoundCount != 1 {
 		t.Errorf("Expected RoundCount to be 1, got %d", game.RoundCount)
+	}
+	if !game.IsCompleted {
+		t.Errorf("Expected game to be completed")
 	}
 }
