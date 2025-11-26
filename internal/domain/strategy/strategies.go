@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"flip7_strategy/internal/domain"
+	"fmt"
 	"math/rand"
 )
 
@@ -177,6 +178,90 @@ func (s *ProbabilisticStrategy) ChooseTarget(action domain.ActionType, candidate
 
 		for _, p := range candidates {
 			if p.ID != self.ID { // Only consider opponents
+				if p.CurrentHand.HasSecondChance() {
+					continue
+				}
+				if minScore == -1 || p.TotalScore < minScore {
+					minScore = p.TotalScore
+					bestTarget = p
+				}
+			}
+		}
+		if bestTarget != nil {
+			return bestTarget
+		}
+		return candidates[0]
+	}
+
+	bestTarget := self
+	maxScore := -1
+	for _, p := range candidates {
+		if p.ID != self.ID {
+			if p.TotalScore > maxScore {
+				maxScore = p.TotalScore
+				bestTarget = p
+			}
+		}
+	}
+
+	if bestTarget.ID == self.ID && len(candidates) > 1 {
+		for _, p := range candidates {
+			if p.ID != self.ID {
+				return p
+			}
+		}
+	}
+
+	return bestTarget
+}
+
+const DefaultHeuristicThreshold = 27
+
+// HeuristicStrategy stops when sum of number cards >= Threshold.
+type HeuristicStrategy struct {
+	Threshold int
+}
+
+func NewHeuristicStrategy(threshold int) *HeuristicStrategy {
+	return &HeuristicStrategy{Threshold: threshold}
+}
+
+func (s *HeuristicStrategy) Name() string {
+	return fmt.Sprintf("Heuristic-%d", s.Threshold)
+}
+
+func (s *HeuristicStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	sum := 0
+	for val := range hand.NumberCards {
+		sum += int(val)
+	}
+
+	if sum >= s.Threshold {
+		return domain.TurnChoiceStay
+	}
+	return domain.TurnChoiceHit
+}
+
+func (s *HeuristicStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+	// Heuristic:
+	// Freeze -> Self.
+	// FlipThree -> Leader opponent.
+	// GiveSecondChance -> Weakest opponent.
+
+	if action == domain.ActionFreeze {
+		for _, p := range candidates {
+			if p.ID == self.ID {
+				return p
+			}
+		}
+	}
+
+	if action == domain.ActionGiveSecondChance {
+		var bestTarget *domain.Player
+		minScore := -1
+
+		for _, p := range candidates {
+			if p.ID != self.ID {
 				if p.CurrentHand.HasSecondChance() {
 					continue
 				}
