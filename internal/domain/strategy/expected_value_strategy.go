@@ -45,18 +45,13 @@ func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 
 		// Simulate adding this card
 		clonedHand := hand.Clone()
-		busted, flip7, _ := clonedHand.AddCard(card)
+		busted, _, _ := clonedHand.AddCard(card)
 
 		if busted {
 			totalEV += 0 // Score becomes 0 if busted
 		} else {
 			// Calculate new score
 			newScore := calc.Compute(clonedHand).Total
-			if flip7 {
-				// If Flip 7 achieved, we might get bonus, handled in Compute
-				// But wait, AddCard returns flip7 bool, but Compute also checks for bonus.
-				// Let's trust Compute.
-			}
 			totalEV += float64(newScore)
 		}
 	}
