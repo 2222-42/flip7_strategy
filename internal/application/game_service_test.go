@@ -17,7 +17,7 @@ func (s *MockStrategy) Name() string { return "Mock" }
 func (s *MockStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, score int, others []*domain.Player) domain.TurnChoice {
 	return s.DecideResult
 }
-func (s *MockStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player, deck *domain.Deck) *domain.Player {
+func (s *MockStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
 	if s.ChooseTargetResult != nil {
 		return s.ChooseTargetResult
 	}

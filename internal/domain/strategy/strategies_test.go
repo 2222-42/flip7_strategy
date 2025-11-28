@@ -147,10 +147,9 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 		},
 	}
 
-	deck := domain.NewDeck()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := s.ChooseTarget(tt.action, tt.candidates, self, deck)
+			target := s.ChooseTarget(tt.action, tt.candidates, self)
 			if target.ID != tt.expectedTarget.ID {
 				t.Errorf("%s: Expected target %s (ID: %v), got %s (ID: %v)",
 					tt.description, tt.expectedTarget.Name, tt.expectedTarget.ID,
@@ -192,7 +191,8 @@ func TestChooseTarget_FlipThree_HighRisk(t *testing.T) {
 	// Normal logic (without risk check) would target Op1 (Leader).
 	// New logic should target Op2 (High Risk).
 
-	target := s.ChooseTarget(domain.ActionFlipThree, candidates, self, deck)
+	s.SetDeck(deck) // Inject deck
+	target := s.ChooseTarget(domain.ActionFlipThree, candidates, self)
 
 	if target.ID != op2.ID {
 		t.Errorf("Expected target to be Op2 (High Risk), got %s (Score: %d)", target.Name, target.TotalScore)

@@ -13,6 +13,7 @@ import (
 // HumanStrategy allows a human to play via CLI.
 type HumanStrategy struct {
 	reader *bufio.Reader
+	deck   *domain.Deck
 }
 
 func NewHumanStrategy() *HumanStrategy {
@@ -55,7 +56,11 @@ func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playe
 	}
 }
 
-func (h *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player, deck *domain.Deck) *domain.Player {
+func (h *HumanStrategy) SetDeck(d *domain.Deck) {
+	h.deck = d
+}
+
+func (h *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
 	fmt.Printf("\n--- Choose Target for %s ---\n", action)
 	for i, p := range candidates {
 		label := p.Name

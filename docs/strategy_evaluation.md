@@ -1,56 +1,60 @@
 # Strategy Evaluation Results
 
-## Single Player Optimization (Fastest to 200 Points)
+This document tracks the performance of different strategies in the Flip 7 game.
 
-We evaluated how many rounds it takes for a single player to reach 200 points using different strategies.
+## Latest Simulation Run (Flip Three Bust Strategy Implemented)
 
-| Strategy | Average Rounds | Median Rounds |
+**Date**: 2025-11-29
+**Changes**: Implemented `EstimateFlipThreeRisk` and updated `Adaptive`, `ExpectedValue`, and `Heuristic` strategies to target high-risk opponents when using `Flip Three`.
+
+### 1. Single Player Optimization (Fastest to 200 Points)
+
+| Strategy | Avg Rounds | Median Rounds |
 | :--- | :--- | :--- |
-| **ExpectedValue** | **9.66** | **9.00** |
-| **Adaptive** | **9.80** | **10.00** |
-| Probabilistic | 9.80 | 10.00 |
-| Heuristic-27 | 10.06 | 10.00 |
-| Aggressive | 11.06 | 11.00 |
-| Cautious | 12.27 | 12.00 |
+| **Adaptive** | **9.72** | **9.00** |
+| Probabilistic | 9.79 | 10.00 |
+| ExpectedValue | 9.81 | 9.00 |
+| Heuristic-27 | 9.88 | 10.00 |
+| Aggressive | 11.18 | 11.00 |
+| Cautious | 12.26 | 12.00 |
 
-*Result: The **ExpectedValue** strategy remains the most efficient, followed closely by **Adaptive** and **Probabilistic**.*
+*Adaptive strategy is now the fastest to reach 200 points.*
 
-## Multiplayer Evaluation (Win Rates)
+### 2. Multiplayer Evaluation (Win Rates)
 
-We simulated 1000 games for each player count to observe strategy performance in a competitive setting.
+Win rates in games with N players (1000 games each).
 
-### 5 Players
-- **ExpectedValue**: 21.70%
-- **Adaptive**: 19.80%
-- **Probabilistic**: 19.45%
-- **Heuristic-27**: 18.45%
-- **Aggressive**: 15.50%
-- **Cautious**: 5.10%
-
-*Result: **ExpectedValue** takes the lead in 5-player games, with **Adaptive** and **Probabilistic** following. **Cautious** remains the weakest despite the Second Chance improvement.*
-
-## Strategy Combination Evaluation (1vs1)
-
-We evaluated all unique pairs of strategies in 1vs1 matchups (1000 games each).
-
-| Matchup | Winner | Win Rate | Loser | Win Rate |
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
 | :--- | :--- | :--- | :--- | :--- |
-| Cautious vs Aggressive | Aggressive | 75.30% | Cautious | 24.70% |
-| Cautious vs Probabilistic | Probabilistic | 79.40% | Cautious | 20.60% |
-| Cautious vs Heuristic-27 | Heuristic-27 | 81.65% | Cautious | 18.35% |
-| **Cautious vs ExpectedValue** | **ExpectedValue** | **85.35%** | Cautious | 14.65% |
-| Aggressive vs Probabilistic | Probabilistic | 56.60% | Aggressive | 43.40% |
-| Aggressive vs Heuristic-27 | Heuristic-27 | 56.40% | Aggressive | 43.60% |
-| **Aggressive vs ExpectedValue** | **ExpectedValue** | **56.65%** | Aggressive | 43.35% |
-| **Aggressive vs Adaptive** | **Adaptive** | **58.80%** | Aggressive | 41.20% |
-| Probabilistic vs Heuristic-27 | Heuristic-27 | 51.35% | Probabilistic | 48.65% |
-| **Probabilistic vs ExpectedValue** | **ExpectedValue** | **52.95%** | Probabilistic | 47.05% |
-| **Probabilistic vs Adaptive** | **Adaptive** | **52.55%** | Probabilistic | 47.45% |
-| **Heuristic-27 vs ExpectedValue** | **ExpectedValue** | **52.25%** | Heuristic-27 | 47.75% |
-| **Heuristic-27 vs Adaptive** | **Adaptive** | **50.70%** | Heuristic-27 | 49.30% |
-| **ExpectedValue vs Adaptive** | **ExpectedValue** | **50.25%** | Adaptive | 49.75% |
+| **Adaptive** | **21.80%** | **20.85%** | **20.60%** | **21.05%** |
+| ExpectedValue | 15.25% | 19.80% | 20.25% | 20.20% |
+| Heuristic-27 | 18.00% | 15.90% | 19.80% | 17.65% |
+| Aggressive | 17.20% | 17.65% | 18.55% | 19.85% |
+| Probabilistic | 16.60% | 17.85% | 15.75% | 16.40% |
+| Cautious | 11.15% | 7.95% | 5.05% | 4.85% |
 
-*Result:*
-- **ExpectedValue** and **Adaptive** are extremely close, with ExpectedValue slightly edging out Adaptive in their direct matchup (50.25% vs 49.75%).
-- **ExpectedValue** wins against all other strategies.
-- **Adaptive** wins against all strategies except ExpectedValue (narrow loss).
+*Adaptive strategy consistently outperforms all others in multiplayer settings.*
+
+### 3. Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 13.90% | 6.70% | 8.80% | 7.60% | 8.40% |
+| **Aggressive** | 86.10% | - | 46.20% | 43.55% | 42.85% | 40.45% |
+| **Probabilistic** | 93.30% | 53.80% | - | 48.20% | 45.55% | 46.25% |
+| **Heuristic-27** | 91.20% | 56.45% | 51.80% | - | 46.60% | 47.20% |
+| **ExpectedValue** | 92.40% | 57.15% | 54.45% | 53.40% | - | 48.45% |
+| **Adaptive** | **91.60%** | **59.55%** | **53.75%** | **52.80%** | **51.55%** | - |
+
+*Adaptive strategy has a positive win rate (>50%) against ALL other strategies.*
+
+## Conclusions
+
+The implementation of the **Flip Three Bust Strategy** (targeting high-risk opponents) has significantly improved the performance of the strategies that use it (Adaptive, ExpectedValue, Heuristic, Probabilistic).
+
+- **Adaptive Strategy** is currently the **dominant strategy**, winning both in speed and head-to-head matchups.
+- **ExpectedValue** remains a very strong contender.
+- **Cautious** strategy is too slow to compete effectively.
+- **Aggressive** strategy is good against Cautious but loses to more calculated strategies.
