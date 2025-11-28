@@ -40,10 +40,10 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 	// Calculate total score
 	// Formula: (BaseSum + AddModifiers) * Multiplier + Bonus
 
-	// Flip 7 bonus: awards 15 points if the player has 7 or more cards.
+	// Flip 7 bonus: awards 15 points if the player has 7 or more unique number cards.
 	bonus := 0
-	// Check if Flip 7 achieved (7 cards)
-	totalCards := len(hand.RawNumberCards) + len(hand.ModifierCards) + len(hand.ActionCards)
+	// Check if Flip 7 achieved (7 unique number cards)
+	totalCards := len(hand.NumberCards)
 	if totalCards >= 7 {
 		bonus = 15
 	}

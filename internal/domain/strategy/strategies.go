@@ -101,7 +101,7 @@ func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, 
 		return domain.TurnChoiceHit
 	}
 	risk := deck.EstimateHitRisk(hand.NumberCards)
-	totalCards := len(hand.RawNumberCards) + len(hand.ModifierCards) + len(hand.ActionCards)
+	totalCards := len(hand.NumberCards)
 	if totalCards == 6 && risk < 0.5 {
 		return domain.TurnChoiceHit
 	}
