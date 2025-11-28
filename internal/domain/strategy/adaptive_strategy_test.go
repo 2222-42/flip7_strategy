@@ -72,3 +72,36 @@ func TestAdaptiveStrategy_Decide(t *testing.T) {
 		}
 	})
 }
+
+func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
+	s := strategy.NewAdaptiveStrategy()
+
+	// AdaptiveStrategy embeds CommonTargetChooser, so it should behave like it.
+	// CommonTargetChooser logic:
+	// Freeze -> Self
+	// FlipThree -> Leader opponent
+	// GiveSecondChance -> Weakest opponent
+
+	self := &domain.Player{ID: uuid.New(), TotalScore: 100, CurrentHand: domain.NewPlayerHand()}
+	p2 := &domain.Player{ID: uuid.New(), TotalScore: 150, CurrentHand: domain.NewPlayerHand()} // Leader
+	p3 := &domain.Player{ID: uuid.New(), TotalScore: 50, CurrentHand: domain.NewPlayerHand()}  // Weakest
+	candidates := []*domain.Player{self, p2, p3}
+
+	// Test Freeze -> Self
+	target := s.ChooseTarget(domain.ActionFreeze, candidates, self)
+	if target.ID != self.ID {
+		t.Errorf("Expected Freeze target to be Self, got %v", target.ID)
+	}
+
+	// Test FlipThree -> Leader (p2)
+	target = s.ChooseTarget(domain.ActionFlipThree, candidates, self)
+	if target.ID != p2.ID {
+		t.Errorf("Expected FlipThree target to be Leader (p2), got %v", target.ID)
+	}
+
+	// Test GiveSecondChance -> Weakest (p3)
+	target = s.ChooseTarget(domain.ActionGiveSecondChance, candidates, self)
+	if target.ID != p3.ID {
+		t.Errorf("Expected GiveSecondChance target to be Weakest (p3), got %v", target.ID)
+	}
+}

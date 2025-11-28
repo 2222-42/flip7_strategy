@@ -28,7 +28,7 @@ func (s *AdaptiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, pl
 	// Check if any opponent has reached the winning threshold
 	opponentThreat := false
 	for _, p := range otherPlayers {
-		if p.TotalScore >= 200 {
+		if p.TotalScore >= domain.WinningThreshold {
 			opponentThreat = true
 			break
 		}
