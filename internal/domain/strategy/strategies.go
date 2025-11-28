@@ -143,12 +143,18 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 }
 
 // CommonTargetChooser implements shared target selection logic.
-type CommonTargetChooser struct{}
+type CommonTargetChooser struct {
+	deck *domain.Deck
+}
+
+func (c *CommonTargetChooser) SetDeck(d *domain.Deck) {
+	c.deck = d
+}
 
 func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
 	// Shared logic:
 	// Freeze -> Self.
-	// FlipThree -> Leader opponent.
+	// FlipThree -> High risk opponent (bust probability > 0.8) -> Leader opponent.
 	// GiveSecondChance -> Weakest opponent (least threat).
 
 	if action == domain.ActionFreeze {
@@ -157,6 +163,44 @@ func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates 
 				return p
 			}
 		}
+	}
+
+	if action == domain.ActionFlipThree {
+		// Check for high-risk opponents
+		var bestTarget *domain.Player
+		highestScore := -1
+
+		// Filter opponents
+		var opponents []*domain.Player
+		for _, p := range candidates {
+			if p.ID != self.ID {
+				opponents = append(opponents, p)
+			}
+		}
+
+		if len(opponents) == 0 {
+			return self // Should not happen usually
+		}
+
+		// Check risk for each opponent
+		for _, p := range opponents {
+			risk := 0.0
+			if c.deck != nil {
+				risk = c.deck.EstimateFlipThreeRisk(p.CurrentHand.NumberCards, p.CurrentHand.HasSecondChance())
+			}
+			if risk > 0.8 {
+				if p.TotalScore > highestScore {
+					highestScore = p.TotalScore
+					bestTarget = p
+				}
+			}
+		}
+
+		if bestTarget != nil {
+			return bestTarget
+		}
+
+		// Fallback to Leader logic (existing logic below)
 	}
 
 	if action == domain.ActionGiveSecondChance {

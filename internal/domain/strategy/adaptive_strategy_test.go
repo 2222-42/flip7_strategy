@@ -86,6 +86,7 @@ func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
 	p2 := &domain.Player{ID: uuid.New(), TotalScore: 150, CurrentHand: domain.NewPlayerHand()} // Leader
 	p3 := &domain.Player{ID: uuid.New(), TotalScore: 50, CurrentHand: domain.NewPlayerHand()}  // Weakest
 	candidates := []*domain.Player{self, p2, p3}
+	deck := domain.NewDeck()
 
 	// Test Freeze -> Self
 	target := s.ChooseTarget(domain.ActionFreeze, candidates, self)
@@ -94,6 +95,7 @@ func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
 	}
 
 	// Test FlipThree -> Leader (p2)
+	s.SetDeck(deck) // Inject deck for test
 	target = s.ChooseTarget(domain.ActionFlipThree, candidates, self)
 	if target.ID != p2.ID {
 		t.Errorf("Expected FlipThree target to be Leader (p2), got %v", target.ID)
