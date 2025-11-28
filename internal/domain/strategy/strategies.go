@@ -84,6 +84,11 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 // AggressiveStrategy pushes luck until high risk.
 type AggressiveStrategy struct{}
 
+// NewAggressiveStrategy returns a new AggressiveStrategy instance.
+func NewAggressiveStrategy() *AggressiveStrategy {
+	return &AggressiveStrategy{}
+}
+
 func (s *AggressiveStrategy) Name() string {
 	return "Aggressive"
 }

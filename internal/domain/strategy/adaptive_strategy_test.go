@@ -16,7 +16,7 @@ func TestAdaptiveStrategy_Decide(t *testing.T) {
 	// Hand has 6 cards. High Score (50).
 	// Deck has 10 cards: 4 duplicates (bust), 6 new (safe, low value).
 	// Risk = 0.4.
-	// Aggressive Strategy: Hits (because 6 cards and risk < 0.5).
+	// Aggressive Strategy: Hits (because totalCards in hand is 6 and risk < 0.5, per AggressiveStrategy's totalCards check).
 	// Expected Value Strategy:
 	//   Current Score = 50.
 	//   Avg Safe Card Value = 3.5.

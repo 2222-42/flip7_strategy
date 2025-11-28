@@ -15,8 +15,8 @@ type AdaptiveStrategy struct {
 
 func NewAdaptiveStrategy() *AdaptiveStrategy {
 	return &AdaptiveStrategy{
-		Aggressive:    &AggressiveStrategy{},
-		ExpectedValue: &ExpectedValueStrategy{},
+		Aggressive:    NewAggressiveStrategy(),
+		ExpectedValue: NewExpectedValueStrategy(),
 	}
 }
 
