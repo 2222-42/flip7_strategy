@@ -142,3 +142,25 @@ func (p *Player) StartNewRound() {
 func (p *Player) BankScore(score int) {
 	p.TotalScore += score
 }
+
+// Clone creates a deep copy of the PlayerHand.
+func (h *PlayerHand) Clone() *PlayerHand {
+	newHand := &PlayerHand{
+		ID:               h.ID,
+		NumberCards:      make(map[NumberValue]struct{}),
+		RawNumberCards:   make([]NumberValue, len(h.RawNumberCards)),
+		ModifierCards:    make([]Card, len(h.ModifierCards)),
+		ActionCards:      make([]Card, len(h.ActionCards)),
+		SecondChanceUsed: h.SecondChanceUsed,
+		Status:           h.Status,
+	}
+
+	for k, v := range h.NumberCards {
+		newHand.NumberCards[k] = v
+	}
+	copy(newHand.RawNumberCards, h.RawNumberCards)
+	copy(newHand.ModifierCards, h.ModifierCards)
+	copy(newHand.ActionCards, h.ActionCards)
+
+	return newHand
+}

@@ -30,8 +30,9 @@ func (s *SimulationService) RunMonteCarlo(n int) {
 		p2 := domain.NewPlayer("Bob (Aggressive)", &strategy.AggressiveStrategy{})
 		p3 := domain.NewPlayer("Charlie (Probabilistic)", &strategy.ProbabilisticStrategy{})
 		p4 := domain.NewPlayer("Dave (Heuristic)", strategy.NewHeuristicStrategy(strategy.DefaultHeuristicThreshold))
+		p5 := domain.NewPlayer("Eve (ExpectedValue)", &strategy.ExpectedValueStrategy{})
 
-		players := []*domain.Player{p1, p2, p3, p4}
+		players := []*domain.Player{p1, p2, p3, p4, p5}
 		game := domain.NewGame(players)
 
 		svc := NewGameService(game)
@@ -115,6 +116,7 @@ func (s *SimulationService) RunSinglePlayerOptimization(n int) {
 		{"Aggressive", &strategy.AggressiveStrategy{}},
 		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
 		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
+		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
 	}
 
 	for _, strat := range strategies {
@@ -165,6 +167,7 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 		&strategy.AggressiveStrategy{},
 		&strategy.ProbabilisticStrategy{},
 		strategy.NewHeuristicStrategy(27),
+		&strategy.ExpectedValueStrategy{},
 	}
 
 	for playerCount := 1; playerCount <= 5; playerCount++ {
@@ -216,6 +219,7 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		{"Aggressive", &strategy.AggressiveStrategy{}},
 		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
 		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
+		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
 	}
 
 	for i := 0; i < len(strategies); i++ {

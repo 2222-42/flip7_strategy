@@ -6,30 +6,26 @@ We evaluated how many rounds it takes for a single player to reach 200 points us
 
 | Strategy | Average Rounds | Median Rounds |
 | :--- | :--- | :--- |
-| **Heuristic-27** | **10.65** | **10.00** |
-| Probabilistic | 10.87 | 11.00 |
-| Aggressive | 11.16 | 11.00 |
-| Cautious | 13.62 | 14.00 |
+| **ExpectedValue** | **9.40** | **9.00** |
+| Heuristic-27 | 9.96 | 10.00 |
+| Probabilistic | 10.04 | 10.00 |
+| Aggressive | 10.27 | 10.00 |
+| Cautious | 13.07 | 13.00 |
 
-*Result: The **Heuristic-27** strategy (stopping at sum >= 27) is the most efficient for speed, followed closely by the Probabilistic strategy.*
+*Result: The **ExpectedValue** strategy is the most efficient, reaching 200 points faster than any other strategy.*
 
 ## Multiplayer Evaluation (Win Rates)
 
 We simulated 1000 games for each player count to observe strategy performance in a competitive setting.
 
-### 3 Players
-- **Aggressive**: 46.20%
-- **Probabilistic**: 43.10%
-- **Cautious**: 10.70%
+### 5 Players
+- **Aggressive**: 27.40%
+- **ExpectedValue**: 26.90%
+- **Heuristic-27**: 22.40%
+- **Probabilistic**: 20.95%
+- **Cautious**: 2.35%
 
-### 4 Players
-- **Aggressive**: 37.15%
-- **Heuristic-27**: 28.90%
-- **Probabilistic**: 28.05%
-- **Cautious**: 5.90%
-
-
-*Result: The **Aggressive** strategy tends to dominate in multiplayer settings, likely because it pushes for higher scores per round, which is necessary to beat opponents before they reach 200. The **Cautious** strategy falls behind significantly as the number of players increases.*
+*Result: In a crowded game (5 players), **Aggressive** and **ExpectedValue** are the top contenders. Aggressive takes slightly more risks which pays off when multiple opponents are racing for the win.*
 
 ## Strategy Combination Evaluation (1vs1)
 
@@ -37,15 +33,18 @@ We evaluated all unique pairs of strategies in 1vs1 matchups (1000 games each).
 
 | Matchup | Winner | Win Rate | Loser | Win Rate |
 | :--- | :--- | :--- | :--- | :--- |
-| Cautious vs Aggressive | Aggressive | 72.90% | Cautious | 27.10% |
-| Cautious vs Probabilistic | Probabilistic | 79.90% | Cautious | 20.10% |
-| Cautious vs Heuristic-27 | Heuristic-27 | 76.60% | Cautious | 23.40% |
-| Aggressive vs Probabilistic | Aggressive | 50.30% | Probabilistic | 49.70% |
-| Aggressive vs Heuristic-27 | Aggressive | 54.65% | Heuristic-27 | 45.35% |
-| Probabilistic vs Heuristic-27 | Heuristic-27 | 50.50% | Probabilistic | 49.50% |
+| Cautious vs Aggressive | Aggressive | 75.55% | Cautious | 24.45% |
+| Cautious vs Probabilistic | Probabilistic | 79.40% | Cautious | 20.60% |
+| Cautious vs Heuristic-27 | Heuristic-27 | 81.40% | Cautious | 18.60% |
+| **Cautious vs ExpectedValue** | **ExpectedValue** | **85.15%** | Cautious | 14.85% |
+| Aggressive vs Probabilistic | Probabilistic | 51.75% | Aggressive | 48.25% |
+| Aggressive vs Heuristic-27 | Heuristic-27 | 50.95% | Aggressive | 49.05% |
+| **Aggressive vs ExpectedValue** | **ExpectedValue** | **53.30%** | Aggressive | 46.70% |
+| Probabilistic vs Heuristic-27 | Heuristic-27 | 51.05% | Probabilistic | 48.95% |
+| **Probabilistic vs ExpectedValue** | **ExpectedValue** | **53.80%** | Probabilistic | 46.20% |
+| **Heuristic-27 vs ExpectedValue** | **ExpectedValue** | **55.60%** | Heuristic-27 | 44.40% |
 
 *Result:*
-- **Cautious** is consistently beaten by all other strategies in 1vs1.
-- **Aggressive** has a slight edge over **Probabilistic** and **Heuristic-27**.
-- **Probabilistic** and **Heuristic-27** are very evenly matched.
-
+- **ExpectedValue** is the dominant strategy in 1vs1, winning against **ALL** other strategies with > 53% win rate.
+- **Cautious** is consistently beaten by all other strategies.
+- **Aggressive**, **Probabilistic**, and **Heuristic-27** are relatively evenly matched against each other, but lose to **ExpectedValue**.
