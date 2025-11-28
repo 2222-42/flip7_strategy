@@ -4,12 +4,16 @@
 [![Go Tests](https://github.com/2222-42/flip7_strategy/actions/workflows/test.yml/badge.svg)](https://github.com/2222-42/flip7_strategy/actions/workflows/test.yml)
 [![Lint](https://github.com/2222-42/flip7_strategy/actions/workflows/lint.yml/badge.svg)](https://github.com/2222-42/flip7_strategy/actions/workflows/lint.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/2222-42/flip7_strategy)](https://goreportcard.com/report/github.com/2222-42/flip7_strategy)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A robust simulation of the **Flip 7** card game, implemented in Go using **Domain-Driven Design (DDD)** principles and the **Strategy Pattern**.
 
 ## Overview
 
 This project simulates the "Flip 7" card game, where players push their luck to accumulate points without busting. It features a complete domain model, rule enforcement (including complex action cards), and an extensible AI system.
+
+> [!NOTE]
+> This is a strategy study and simulation. To play the actual game with friends, please support the creators by purchasing the physical copy: [Buy Flip 7](https://theop.games/products/flip-7)
 
 ## Features
 
