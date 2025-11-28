@@ -13,7 +13,7 @@ func (s *ExpectedValueStrategy) Name() string {
 	return "ExpectedValue"
 }
 
-func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
 	// If deck is empty, must stay (though game logic usually handles this)
 	if len(deck.Cards) == 0 {
 		return domain.TurnChoiceStay

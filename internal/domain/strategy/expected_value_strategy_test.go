@@ -75,6 +75,7 @@ func TestExpectedValueStrategy_Decide(t *testing.T) {
 				hand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(n)})
 			}
 
+			// playerScore and otherPlayers are unused by ExpectedValueStrategy, so passing 0 and nil.
 			choice := s.Decide(deck, hand, 0, nil)
 			if choice != tt.expectedChoice {
 				t.Errorf("Expected %v, got %v", tt.expectedChoice, choice)
