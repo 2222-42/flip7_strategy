@@ -22,6 +22,8 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 
 	for _, mod := range hand.ModifierCards {
 		switch mod.ModifierType {
+		case ModifierPlus2:
+			addModifiers += 2
 		case ModifierPlus4:
 			addModifiers += 4
 		case ModifierPlus6:
@@ -30,6 +32,8 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 			addModifiers += 8
 		case ModifierPlus10:
 			addModifiers += 10
+		case ModifierX2:
+			multiplier *= 2
 		}
 	}
 

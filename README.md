@@ -13,6 +13,7 @@ This project simulates the "Flip 7" card game, where players push their luck to 
     - **Cautious**: Plays safely, banking points early.
     - **Aggressive**: Pushes for high scores and "Flip 7" bonuses.
     - **Probabilistic**: Calculates risk based on remaining cards in the deck.
+    - **ExpectedValue**: Calculates the expected value of the next draw based on the remaining deck.
     - **Human**: Interactive CLI mode for you to play.
 - **Complex Game Rules**:
     - **Actions**: Freeze, Flip Three (with nested resolution), Second Chance (with passing logic).
