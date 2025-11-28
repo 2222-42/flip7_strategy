@@ -308,7 +308,7 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 				// Check Flip 7 with this new card?
 				// "Flip 7" check is in AddCard.
 				// Let's manually check Flip 7 since we bypassed ProcessCardDraw.
-				totalCards := len(target.CurrentHand.RawNumberCards) + len(target.CurrentHand.ModifierCards) + len(target.CurrentHand.ActionCards)
+				totalCards := len(target.CurrentHand.RawNumberCards)
 				if totalCards >= 7 {
 					s.log("%s FLIP 7! Bonus!\n", target.Name)
 					target.CurrentHand.Status = domain.HandStatusStayed
