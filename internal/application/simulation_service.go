@@ -180,9 +180,10 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 		for i := 0; i < n; i++ {
 			var players []*domain.Player
 			for j := 0; j < playerCount; j++ {
-				// Assign strategies in round-robin or random?
-				// Let's do round-robin from the pool
-				strat := strats[j%len(strats)]
+				// Assign strategies in round-robin with rotation based on game index
+				// This ensures all strategies get played even if playerCount < len(strats)
+				stratIndex := (i + j) % len(strats)
+				strat := strats[stratIndex]
 				name := fmt.Sprintf("P%d-%s", j+1, strat.Name())
 				players = append(players, domain.NewPlayer(name, strat))
 			}

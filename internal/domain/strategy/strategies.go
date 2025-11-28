@@ -14,6 +14,9 @@ func (s *CautiousStrategy) Name() string {
 }
 
 func (s *CautiousStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	if hand.HasSecondChance() {
+		return domain.TurnChoiceHit
+	}
 	if len(hand.NumberCards) == 0 {
 		return domain.TurnChoiceHit
 	}
@@ -94,8 +97,11 @@ func (s *AggressiveStrategy) Name() string {
 }
 
 func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	if hand.HasSecondChance() {
+		return domain.TurnChoiceHit
+	}
 	risk := deck.EstimateHitRisk(hand.NumberCards)
-	totalCards := len(hand.RawNumberCards) + len(hand.ModifierCards) + len(hand.ActionCards)
+	totalCards := len(hand.NumberCards)
 	if totalCards == 6 && risk < 0.5 {
 		return domain.TurnChoiceHit
 	}
@@ -206,6 +212,9 @@ func (s *ProbabilisticStrategy) Name() string {
 }
 
 func (s *ProbabilisticStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	if hand.HasSecondChance() {
+		return domain.TurnChoiceHit
+	}
 	risk := deck.EstimateHitRisk(hand.NumberCards)
 	maxOpponentScore := 0
 	for _, p := range otherPlayers {
@@ -242,6 +251,9 @@ func (s *HeuristicStrategy) Name() string {
 }
 
 func (s *HeuristicStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+	if hand.HasSecondChance() {
+		return domain.TurnChoiceHit
+	}
 	sum := 0
 	for val := range hand.NumberCards {
 		sum += int(val)

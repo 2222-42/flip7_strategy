@@ -106,8 +106,8 @@ func (h *PlayerHand) AddCard(card Card) (busted bool, flip7 bool, discarded []Ca
 		// Note: Immediate actions like FlipThree need to be handled by the caller/Round.
 	}
 
-	// Flip 7 condition: triggers when the player has 7 or more cards in hand (of any type) without busting.
-	totalCards := len(h.RawNumberCards) + len(h.ModifierCards) + len(h.ActionCards)
+	// Flip 7 condition: triggers when the player has 7 unique Number cards.
+	totalCards := len(h.NumberCards)
 	if totalCards >= 7 && h.Status == HandStatusActive {
 		return false, true, nil
 	}

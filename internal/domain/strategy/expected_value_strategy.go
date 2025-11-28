@@ -19,6 +19,9 @@ func (s *ExpectedValueStrategy) Name() string {
 }
 
 func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
+	if hand.HasSecondChance() {
+		return domain.TurnChoiceHit
+	}
 	// If deck is empty, must stay (though game logic usually handles this)
 	if len(deck.Cards) == 0 {
 		return domain.TurnChoiceStay
