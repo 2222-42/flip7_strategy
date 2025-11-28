@@ -9,6 +9,11 @@ type ExpectedValueStrategy struct {
 	CommonTargetChooser
 }
 
+// NewExpectedValueStrategy returns a new ExpectedValueStrategy instance.
+func NewExpectedValueStrategy() *ExpectedValueStrategy {
+	return &ExpectedValueStrategy{}
+}
+
 func (s *ExpectedValueStrategy) Name() string {
 	return "ExpectedValue"
 }

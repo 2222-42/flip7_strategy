@@ -43,8 +43,13 @@ We evaluated all unique pairs of strategies in 1vs1 matchups (1000 games each).
 | Probabilistic vs Heuristic-27 | Heuristic-27 | 51.05% | Probabilistic | 48.95% |
 | **Probabilistic vs ExpectedValue** | **ExpectedValue** | **53.80%** | Probabilistic | 46.20% |
 | **Heuristic-27 vs ExpectedValue** | **ExpectedValue** | **55.60%** | Heuristic-27 | 44.40% |
+| **Adaptive vs Cautious** | **Adaptive** | **83.00%** | Cautious | 17.00% |
+| **Adaptive vs ExpectedValue** | **Adaptive** | **52.50%** | ExpectedValue | 47.50% |
+| **Adaptive vs Aggressive** | **Adaptive** | **54.70%** | Aggressive | 45.30% |
+| **Adaptive vs Probabilistic** | **Adaptive** | **56.00%** | Probabilistic | 44.00% |
+| **Adaptive vs Heuristic-27** | **Adaptive** | **54.60%** | Heuristic-27 | 45.40% |
 
 *Result:*
-- **ExpectedValue** is the dominant strategy in 1vs1, winning against **ALL** other strategies with > 53% win rate.
-- **Cautious** is consistently beaten by all other strategies.
-- **Aggressive**, **Probabilistic**, and **Heuristic-27** are relatively evenly matched against each other, but lose to **ExpectedValue**.
+- **Adaptive** is the new dominant strategy in 1vs1, defeating **ExpectedValue**, **Aggressive**, and all others.
+- **ExpectedValue** remains very strong, beating everyone except Adaptive.
+- **Adaptive** works by playing efficiently (like ExpectedValue) but switching to high-risk/high-reward (Aggressive) when an opponent threatens to win (score > 200).

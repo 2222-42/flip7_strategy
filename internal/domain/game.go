@@ -13,6 +13,8 @@ const (
 	RoundEndReasonAborted         RoundEndReason = "aborted"
 )
 
+const WinningThreshold = 200
+
 // Round represents a single round of play.
 type Round struct {
 	ID            uuid.UUID      `json:"id"`
@@ -89,9 +91,9 @@ func (g *Game) DetermineWinners() []*Player {
 	var candidates []*Player
 	highestScore := 0
 
-	// Find players with >= 200 points
+	// Find players with >= WinningThreshold points
 	for _, p := range g.Players {
-		if p.TotalScore >= 200 {
+		if p.TotalScore >= WinningThreshold {
 			if p.TotalScore > highestScore {
 				highestScore = p.TotalScore
 				candidates = []*Player{p}
