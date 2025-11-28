@@ -1,5 +1,10 @@
 # Flip 7 Strategy Simulation
 
+[![Go Version](https://img.shields.io/github/go-mod/go-version/2222-42/flip7_strategy)](https://github.com/2222-42/flip7_strategy)
+[![Go Tests](https://github.com/2222-42/flip7_strategy/actions/workflows/test.yml/badge.svg)](https://github.com/2222-42/flip7_strategy/actions/workflows/test.yml)
+[![Lint](https://github.com/2222-42/flip7_strategy/actions/workflows/lint.yml/badge.svg)](https://github.com/2222-42/flip7_strategy/actions/workflows/lint.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/2222-42/flip7_strategy)](https://goreportcard.com/report/github.com/2222-42/flip7_strategy)
+
 A robust simulation of the **Flip 7** card game, implemented in Go using **Domain-Driven Design (DDD)** principles and the **Strategy Pattern**.
 
 ## Overview
