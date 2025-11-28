@@ -6,26 +6,28 @@ We evaluated how many rounds it takes for a single player to reach 200 points us
 
 | Strategy | Average Rounds | Median Rounds |
 | :--- | :--- | :--- |
-| **ExpectedValue** | **9.40** | **9.00** |
-| Heuristic-27 | 9.96 | 10.00 |
-| Probabilistic | 10.04 | 10.00 |
-| Aggressive | 10.27 | 10.00 |
-| Cautious | 13.07 | 13.00 |
+| **Adaptive** | **9.49** | **9.00** |
+| **ExpectedValue** | **9.51** | **9.00** |
+| Probabilistic | 9.59 | 9.00 |
+| Heuristic-27 | 9.63 | 9.00 |
+| Aggressive | 10.41 | 10.00 |
+| Cautious | 12.07 | 12.00 |
 
-*Result: The **ExpectedValue** strategy is the most efficient, reaching 200 points faster than any other strategy.*
+*Result: The **Adaptive** and **ExpectedValue** strategies are the most efficient, reaching 200 points faster than others.*
 
 ## Multiplayer Evaluation (Win Rates)
 
 We simulated 1000 games for each player count to observe strategy performance in a competitive setting.
 
 ### 5 Players
-- **Aggressive**: 27.40%
-- **ExpectedValue**: 26.90%
-- **Heuristic-27**: 22.40%
-- **Probabilistic**: 20.95%
-- **Cautious**: 2.35%
+- **Adaptive**: 21.95%
+- **ExpectedValue**: 19.75%
+- **Probabilistic**: 19.25%
+- **Aggressive**: 17.80%
+- **Heuristic-27**: 17.15%
+- **Cautious**: 4.10%
 
-*Result: In a crowded game (5 players), **Aggressive** and **ExpectedValue** are the top contenders. Aggressive takes slightly more risks which pays off when multiple opponents are racing for the win.*
+*Result: **Adaptive** emerges as the strongest strategy in a 5-player game, followed closely by **ExpectedValue** and **Probabilistic**. The rotation of strategies ensures a fair comparison.*
 
 ## Strategy Combination Evaluation (1vs1)
 
@@ -37,19 +39,18 @@ We evaluated all unique pairs of strategies in 1vs1 matchups (1000 games each).
 | Cautious vs Probabilistic | Probabilistic | 79.40% | Cautious | 20.60% |
 | Cautious vs Heuristic-27 | Heuristic-27 | 81.40% | Cautious | 18.60% |
 | **Cautious vs ExpectedValue** | **ExpectedValue** | **85.15%** | Cautious | 14.85% |
-| Aggressive vs Probabilistic | Probabilistic | 51.75% | Aggressive | 48.25% |
-| Aggressive vs Heuristic-27 | Heuristic-27 | 50.95% | Aggressive | 49.05% |
-| **Aggressive vs ExpectedValue** | **ExpectedValue** | **53.30%** | Aggressive | 46.70% |
-| Probabilistic vs Heuristic-27 | Heuristic-27 | 51.05% | Probabilistic | 48.95% |
-| **Probabilistic vs ExpectedValue** | **ExpectedValue** | **53.80%** | Probabilistic | 46.20% |
-| **Heuristic-27 vs ExpectedValue** | **ExpectedValue** | **55.60%** | Heuristic-27 | 44.40% |
-| **Adaptive vs Cautious** | **Adaptive** | **83.00%** | Cautious | 17.00% |
-| **Adaptive vs ExpectedValue** | **Adaptive** | **52.50%** | ExpectedValue | 47.50% |
-| **Adaptive vs Aggressive** | **Adaptive** | **54.70%** | Aggressive | 45.30% |
-| **Adaptive vs Probabilistic** | **Adaptive** | **56.00%** | Probabilistic | 44.00% |
-| **Adaptive vs Heuristic-27** | **Adaptive** | **54.60%** | Heuristic-27 | 45.40% |
+| Aggressive vs Probabilistic | Probabilistic | 52.25% | Aggressive | 47.75% |
+| Aggressive vs Heuristic-27 | Heuristic-27 | 53.65% | Aggressive | 46.35% |
+| **Aggressive vs ExpectedValue** | **ExpectedValue** | **54.10%** | Aggressive | 45.90% |
+| **Aggressive vs Adaptive** | **Adaptive** | **55.70%** | Aggressive | 44.30% |
+| Probabilistic vs Heuristic-27 | Heuristic-27 | 50.90% | Probabilistic | 49.10% |
+| **Probabilistic vs ExpectedValue** | **ExpectedValue** | **52.95%** | Probabilistic | 47.05% |
+| **Probabilistic vs Adaptive** | **Adaptive** | **52.70%** | Probabilistic | 47.30% |
+| **Heuristic-27 vs ExpectedValue** | **ExpectedValue** | **51.90%** | Heuristic-27 | 48.10% |
+| **Heuristic-27 vs Adaptive** | **Adaptive** | **53.50%** | Heuristic-27 | 46.50% |
+| **ExpectedValue vs Adaptive** | **Adaptive** | **51.00%** | ExpectedValue | 49.00% |
 
 *Result:*
-- **Adaptive** is the new dominant strategy in 1vs1, defeating **ExpectedValue**, **Aggressive**, and all others.
+- **Adaptive** is the dominant strategy in 1vs1, defeating all other strategies, including **ExpectedValue**.
 - **ExpectedValue** remains very strong, beating everyone except Adaptive.
-- **Adaptive** works by playing efficiently (like ExpectedValue) but switching to high-risk/high-reward (Aggressive) when an opponent threatens to win (score > 200).
+- **Heuristic-27** performs surprisingly well, beating Aggressive and Probabilistic.
