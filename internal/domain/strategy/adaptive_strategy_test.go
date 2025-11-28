@@ -86,21 +86,22 @@ func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
 	p2 := &domain.Player{ID: uuid.New(), TotalScore: 150, CurrentHand: domain.NewPlayerHand()} // Leader
 	p3 := &domain.Player{ID: uuid.New(), TotalScore: 50, CurrentHand: domain.NewPlayerHand()}  // Weakest
 	candidates := []*domain.Player{self, p2, p3}
+	deck := domain.NewDeck()
 
 	// Test Freeze -> Self
-	target := s.ChooseTarget(domain.ActionFreeze, candidates, self)
+	target := s.ChooseTarget(domain.ActionFreeze, candidates, self, deck)
 	if target.ID != self.ID {
 		t.Errorf("Expected Freeze target to be Self, got %v", target.ID)
 	}
 
 	// Test FlipThree -> Leader (p2)
-	target = s.ChooseTarget(domain.ActionFlipThree, candidates, self)
+	target = s.ChooseTarget(domain.ActionFlipThree, candidates, self, deck)
 	if target.ID != p2.ID {
 		t.Errorf("Expected FlipThree target to be Leader (p2), got %v", target.ID)
 	}
 
 	// Test GiveSecondChance -> Weakest (p3)
-	target = s.ChooseTarget(domain.ActionGiveSecondChance, candidates, self)
+	target = s.ChooseTarget(domain.ActionGiveSecondChance, candidates, self, deck)
 	if target.ID != p3.ID {
 		t.Errorf("Expected GiveSecondChance target to be Weakest (p3), got %v", target.ID)
 	}

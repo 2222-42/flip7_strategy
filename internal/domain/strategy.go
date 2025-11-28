@@ -11,6 +11,6 @@ const (
 // Strategy defines the behavior for an AI player.
 type Strategy interface {
 	Decide(deck *Deck, hand *PlayerHand, playerScore int, otherPlayers []*Player) TurnChoice
-	ChooseTarget(action ActionType, candidates []*Player, self *Player) *Player
+	ChooseTarget(action ActionType, candidates []*Player, self *Player, deck *Deck) *Player
 	Name() string
 }

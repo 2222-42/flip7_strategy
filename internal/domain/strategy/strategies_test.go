@@ -91,8 +91,8 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 		Name:       "Opponent3",
 		TotalScore: 90,
 		CurrentHand: &domain.PlayerHand{
-			NumberCards:  make(map[domain.NumberValue]struct{}),
-			ActionCards:  []domain.Card{{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance}},
+			NumberCards: make(map[domain.NumberValue]struct{}),
+			ActionCards: []domain.Card{{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance}},
 		},
 	}
 
@@ -147,14 +147,54 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 		},
 	}
 
+	deck := domain.NewDeck()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := s.ChooseTarget(tt.action, tt.candidates, self)
+			target := s.ChooseTarget(tt.action, tt.candidates, self, deck)
 			if target.ID != tt.expectedTarget.ID {
 				t.Errorf("%s: Expected target %s (ID: %v), got %s (ID: %v)",
 					tt.description, tt.expectedTarget.Name, tt.expectedTarget.ID,
 					target.Name, target.ID)
 			}
 		})
+	}
+}
+
+func TestChooseTarget_FlipThree_HighRisk(t *testing.T) {
+	s := strategy.CommonTargetChooser{}
+	self := domain.NewPlayer("Self", nil)
+
+	// Opponent 1: High Score (150), Low Risk (Hand empty)
+	op1 := domain.NewPlayer("Op1", nil)
+	op1.TotalScore = 150
+	op1.CurrentHand = domain.NewPlayerHand()
+
+	// Opponent 2: Low Score (50), High Risk (Hand has 0, 1, 2; Deck has duplicates)
+	op2 := domain.NewPlayer("Op2", nil)
+	op2.TotalScore = 50
+	op2.CurrentHand = domain.NewPlayerHand()
+	op2.CurrentHand.NumberCards[domain.NumberValue(0)] = struct{}{}
+	op2.CurrentHand.NumberCards[domain.NumberValue(1)] = struct{}{}
+	op2.CurrentHand.NumberCards[domain.NumberValue(2)] = struct{}{}
+
+	candidates := []*domain.Player{self, op1, op2}
+
+	// Create a deck that guarantees a bust for Op2
+	// Deck has 0, 1, 2. Op2 has 0, 1, 2.
+	// Drawing 3 cards will definitely hit a duplicate.
+	cards := []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 0},
+		{Type: domain.CardTypeNumber, Value: 1},
+		{Type: domain.CardTypeNumber, Value: 2},
+	}
+	deck := domain.NewDeckFromCards(cards)
+
+	// Normal logic (without risk check) would target Op1 (Leader).
+	// New logic should target Op2 (High Risk).
+
+	target := s.ChooseTarget(domain.ActionFlipThree, candidates, self, deck)
+
+	if target.ID != op2.ID {
+		t.Errorf("Expected target to be Op2 (High Risk), got %s (Score: %d)", target.Name, target.TotalScore)
 	}
 }

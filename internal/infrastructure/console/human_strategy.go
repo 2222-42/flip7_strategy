@@ -55,7 +55,7 @@ func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playe
 	}
 }
 
-func (s *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+func (h *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player, deck *domain.Deck) *domain.Player {
 	fmt.Printf("\n--- Choose Target for %s ---\n", action)
 	for i, p := range candidates {
 		label := p.Name
@@ -67,7 +67,7 @@ func (s *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*dom
 
 	for {
 		fmt.Printf("Enter number (1-%d): ", len(candidates))
-		input, err := s.reader.ReadString('\n')
+		input, err := h.reader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("Error reading input: %v\n", err)
 			continue

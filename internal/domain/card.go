@@ -159,3 +159,74 @@ func NewDeckFromCards(cards []Card) *Deck {
 	d.Shuffle()
 	return d
 }
+
+// EstimateFlipThreeRisk calculates the probability of busting when drawing 3 cards.
+// It uses a Monte Carlo simulation.
+func (d *Deck) EstimateFlipThreeRisk(handNumbers map[NumberValue]struct{}, hasSecondChance bool) float64 {
+	if len(d.Cards) == 0 {
+		return 0
+	}
+
+	trials := 1000
+	busts := 0
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	for i := 0; i < trials; i++ {
+		// Clone deck state (simplified: just shuffle indices)
+		// Actually, we need to simulate drawing 3 cards from the current remaining cards.
+		// Since we don't want to modify the actual deck, we can just pick 3 random indices
+		// from the remaining cards. Note: drawing changes probabilities for subsequent draws.
+		// So we should shuffle a temporary slice of indices or just pick 3 unique indices.
+
+		// Optimization: If deck has < 3 cards, we just draw all of them.
+		// But for simulation, let's assume we can always draw (or deck reshuffles, but we only know current deck).
+		// If deck < 3, probability is deterministic based on those cards.
+		// Let's just simulate drawing up to 3 cards from the current deck.
+
+		deckSize := len(d.Cards)
+		drawCount := 3
+		if deckSize < 3 {
+			drawCount = deckSize
+		}
+
+		// Create a permutation of indices to simulate a shuffle
+		perm := r.Perm(deckSize)
+
+		// Simulation state
+		currentHand := make(map[NumberValue]struct{})
+		for k := range handNumbers {
+			currentHand[k] = struct{}{}
+		}
+		simHasSecondChance := hasSecondChance
+		busted := false
+
+		for j := 0; j < drawCount; j++ {
+			cardIdx := perm[j]
+			card := d.Cards[cardIdx]
+
+			if card.Type == CardTypeNumber {
+				if _, exists := currentHand[card.Value]; exists {
+					if simHasSecondChance {
+						simHasSecondChance = false
+						// Discard the duplicate and the second chance.
+						// The duplicate is NOT added to hand.
+					} else {
+						busted = true
+						break
+					}
+				} else {
+					currentHand[card.Value] = struct{}{}
+				}
+			} else if card.Type == CardTypeAction && card.ActionType == ActionSecondChance {
+				simHasSecondChance = true
+			}
+			// Modifiers and other actions don't cause bust directly (FlipThree/Freeze are queued, not resolved in this risk calc)
+		}
+
+		if busted {
+			busts++
+		}
+	}
+
+	return float64(busts) / float64(trials)
+}

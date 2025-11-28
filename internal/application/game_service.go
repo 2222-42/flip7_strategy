@@ -196,7 +196,7 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 					// Discard
 					s.Game.DiscardPile = append(s.Game.DiscardPile, card)
 				} else {
-					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
+					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p, round.Deck)
 					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
 					// Add to target's hand (recursive check? "If everyone else already has one, then discard")
 					// Let's assume we just add it to target. If target has one, they keep two?
@@ -247,7 +247,7 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 	case domain.ActionFreeze:
 		candidates := []*domain.Player{}
 		candidates = append(candidates, round.ActivePlayers...)
-		target := p.Strategy.ChooseTarget(domain.ActionFreeze, candidates, p)
+		target := p.Strategy.ChooseTarget(domain.ActionFreeze, candidates, p, round.Deck)
 		s.log("%s uses Freeze on %s\n", p.Name, target.Name)
 
 		target.CurrentHand.Status = domain.HandStatusFrozen
@@ -257,7 +257,7 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 	case domain.ActionFlipThree:
 		candidates := []*domain.Player{}
 		candidates = append(candidates, round.ActivePlayers...)
-		target := p.Strategy.ChooseTarget(domain.ActionFlipThree, candidates, p)
+		target := p.Strategy.ChooseTarget(domain.ActionFlipThree, candidates, p, round.Deck)
 		s.log("%s uses Flip Three on %s\n", p.Name, target.Name)
 		s.ExecuteFlipThree(target)
 	}
