@@ -286,24 +286,25 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 
 // processCard handles the logic of adding a card to a player's hand and resolving its effects.
 //
-// Action Card Processing Order (per domain model - docs/domain_model.md):
-// - Flip Three & Freeze (lines 169-172): The player who DRAWS the card chooses a target player.
+// Action Card Processing Order (based on domain model - docs/domain_model.md):
+// - Flip Three & Freeze: The player who DRAWS the card chooses a target player.
 //   The action effect is applied to the TARGET player, then the card is added to the DRAWER's hand.
 //   This order is important because:
 //   1. The drawer must choose a target before knowing the full outcome
 //   2. The target processes the effect (e.g., draws 3 cards for Flip Three)
 //   3. Only after resolution does the drawer add the action card to their own hand
 //
-// - Second Chance (lines 173-175): Added to drawer's hand immediately. If the drawer already
-//   has one, they must pass it to another active player (or discard if no valid target).
+// - Second Chance: Added to drawer's hand immediately. Per domain model (lines 173-175),
+//   if the drawer already has one, they must pass it to another active player (or discard
+//   if no valid target).
 //   NOTE: In Manual Mode, this passing logic is NOT automated. When a player draws a Second
 //   Chance and already has one, the user should track this situation and manually decide which
 //   active player receives it, then input the Second Chance card during that target player's
 //   turn instead of the original drawer's turn.
 //
-// - During Flip Three: If the target draws another Flip Three or Freeze while drawing
-//   their 3 cards, those action cards are queued and resolved AFTER all 3 cards are drawn
-//   (if the target hasn't busted). See resolveFlipThreeManual for details.
+// - During Flip Three: Per domain model (lines 169-172), if the target draws another Flip Three
+//   or Freeze while drawing their 3 cards, those action cards are queued and resolved AFTER all
+//   3 cards are drawn (if the target hasn't busted). See resolveFlipThreeManual for details.
 //
 // Number/Modifier Cards: Added to the player's hand immediately, checked for bust/flip7.
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
