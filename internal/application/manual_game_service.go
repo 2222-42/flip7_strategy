@@ -72,23 +72,16 @@ func (s *ManualGameService) setupPlayers() {
 		startIdx = 1
 	}
 
-	// Reorder players so start player is first
-	// If startIdx is 1 (Me), no change needed.
-	// If startIdx is 2, order becomes P2, P3, ..., Me
-	// Wait, usually turn order is cyclic.
-	// Let's just rotate the slice.
-	startIdx-- // 0-indexed
-	if startIdx > 0 {
-		players = append(players[startIdx:], players[:startIdx]...)
-	}
-
 	s.Game = domain.NewGame(players)
+	s.Game.DealerIndex = startIdx - 1 // Set initial dealer index
 	fmt.Println("Game started!")
 }
 
 func (s *ManualGameService) gameLoop() {
 	for !s.Game.IsCompleted {
 		s.playRound()
+		// Rotate dealer for next round
+		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
 	}
 	s.printWinner()
 }
@@ -96,9 +89,10 @@ func (s *ManualGameService) gameLoop() {
 func (s *ManualGameService) playRound() {
 	// Initialize new round with deck
 	deck := domain.NewDeck()
-	s.Game.CurrentRound = domain.NewRound(s.Game.Players, s.Game.Players[0], deck) // Dealer logic simplified for manual
+	dealer := s.Game.Players[s.Game.DealerIndex]
+	s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, deck)
 
-	fmt.Printf("\n--- New Round ---\n")
+	fmt.Printf("\n--- New Round! Dealer: %s ---\n", dealer.Name)
 
 	// Reset hands (NewRound does this, but let's be sure)
 	// NewRound calls StartNewRound which resets hands.
@@ -147,7 +141,10 @@ func (s *ManualGameService) playRound() {
 					}
 
 					// Remove card from deck (tracking)
-					s.removeCardFromDeck(card)
+					if err := s.removeCardFromDeck(card); err != nil {
+						fmt.Printf("Error: %v. Try again.\n", err)
+						continue
+					}
 
 					// Process card
 					turnContinues := s.processCard(currentPlayer, card)
@@ -159,9 +156,8 @@ func (s *ManualGameService) playRound() {
 				}
 			}
 
-			// Check if round ended during this loop
-			if len(s.Game.CurrentRound.ActivePlayers) == 0 {
-				s.Game.CurrentRound.IsEnded = true
+			// Check if round ended during this loop (Flip 7 or all stayed)
+			if s.Game.CurrentRound.IsEnded {
 				break
 			}
 		}
@@ -239,9 +235,9 @@ func (s *ManualGameService) parseInput(input string) (domain.Card, error) {
 	return domain.Card{}, fmt.Errorf("unknown input")
 }
 
-func (s *ManualGameService) removeCardFromDeck(card domain.Card) {
+func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 	if s.Game.CurrentRound == nil || s.Game.CurrentRound.Deck == nil {
-		return
+		return fmt.Errorf("no active round/deck")
 	}
 	deck := s.Game.CurrentRound.Deck
 	// Find and remove card from deck.Cards
@@ -264,10 +260,10 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) {
 			if card.Type == domain.CardTypeNumber {
 				deck.RemainingCounts[card.Value]--
 			}
-			return
+			return nil
 		}
 	}
-	fmt.Println("Warning: Card not found in deck (maybe already drawn?). Proceeding anyway.")
+	return fmt.Errorf("card not found in deck (already drawn?)")
 }
 
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool {
@@ -317,6 +313,11 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool
 		fmt.Println("FLIP 7!")
 		p.CurrentHand.Status = domain.HandStatusStayed
 		s.bankPoints(p)
+
+		// Flip 7 ends the round immediately
+		s.Game.CurrentRound.IsEnded = true
+		s.Game.CurrentRound.EndReason = domain.RoundEndReasonFlip7
+
 		return false // Turn ends
 	} else {
 		// Show current hand score
