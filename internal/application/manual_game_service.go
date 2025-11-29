@@ -10,6 +10,8 @@ import (
 	"flip7_strategy/internal/domain/strategy"
 )
 
+const FlipThreeCardCount = 3
+
 // ManualGameService handles the manual mode where the user inputs game events.
 type ManualGameService struct {
 	Game   *domain.Game
@@ -32,7 +34,11 @@ func (s *ManualGameService) Run() {
 
 func (s *ManualGameService) setupPlayers() {
 	fmt.Print("Enter number of players: ")
-	numPlayersStr, _ := s.Reader.ReadString('\n')
+	numPlayersStr, err := s.Reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading input. Defaulting to 2 players.")
+		numPlayersStr = "2"
+	}
 	numPlayers, err := strconv.Atoi(strings.TrimSpace(numPlayersStr))
 	if err != nil || numPlayers < 1 {
 		fmt.Println("Invalid number of players. Defaulting to 2.")
@@ -48,7 +54,10 @@ func (s *ManualGameService) setupPlayers() {
 	// Setup other players
 	for i := 1; i < numPlayers; i++ {
 		fmt.Printf("Enter name for Player %d: ", i+1)
-		name, _ := s.Reader.ReadString('\n')
+		name, err := s.Reader.ReadString('\n')
+		if err != nil {
+			name = ""
+		}
 		name = strings.TrimSpace(name)
 		if name == "" {
 			name = fmt.Sprintf("Player %d", i+1)
@@ -65,7 +74,10 @@ func (s *ManualGameService) setupPlayers() {
 		fmt.Printf("%d. %s\n", i+1, p.Name)
 	}
 	fmt.Print("Enter choice: ")
-	startIdxStr, _ := s.Reader.ReadString('\n')
+	startIdxStr, err := s.Reader.ReadString('\n')
+	if err != nil {
+		startIdxStr = "1"
+	}
 	startIdx, err := strconv.Atoi(strings.TrimSpace(startIdxStr))
 	if err != nil || startIdx < 1 || startIdx > numPlayers {
 		fmt.Println("Invalid choice. Defaulting to Me.")
@@ -82,6 +94,13 @@ func (s *ManualGameService) gameLoop() {
 		s.playRound()
 		// Rotate dealer for next round
 		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
+
+		// Check for winners
+		winners := s.Game.DetermineWinners()
+		if len(winners) > 0 {
+			s.Game.Winners = winners
+			s.Game.IsCompleted = true
+		}
 	}
 	s.printWinner()
 }
@@ -118,12 +137,16 @@ func (s *ManualGameService) playRound() {
 			turnEnded := false
 			for !turnEnded {
 				fmt.Print("Input (0-12, +N, x2, F, T, C, S): ")
-				input, _ := s.Reader.ReadString('\n')
+				input, err := s.Reader.ReadString('\n')
+				if err != nil {
+					fmt.Println("Error reading input. Exiting game.")
+					return
+				}
 				input = strings.TrimSpace(input)
 
 				if strings.EqualFold(input, "S") {
 					// Validation: Cannot stay on first turn (empty hand)
-					if len(currentPlayer.CurrentHand.NumberCards) == 0 && len(currentPlayer.CurrentHand.ModifierCards) == 0 && len(currentPlayer.CurrentHand.ActionCards) == 0 {
+					if len(currentPlayer.CurrentHand.NumberCards) == 0 {
 						fmt.Println("Invalid move: You must hit on your first turn!")
 						continue
 					}
@@ -147,12 +170,10 @@ func (s *ManualGameService) playRound() {
 					}
 
 					// Process card
-					turnContinues := s.processCard(currentPlayer, card)
+					s.processCard(currentPlayer, card)
 
-					// Turn ends after one action (Hit), UNLESS it was an Action card (turnContinues = true)
-					if !turnContinues {
-						turnEnded = true
-					}
+					// Turn always ends after one action (Hit) or Action card
+					turnEnded = true
 				}
 			}
 
@@ -160,6 +181,11 @@ func (s *ManualGameService) playRound() {
 			if s.Game.CurrentRound.IsEnded {
 				break
 			}
+		}
+		// After round-robin pass, check if all players are inactive and round is not ended
+		if !s.Game.CurrentRound.IsEnded && len(s.Game.CurrentRound.ActivePlayers) == 0 {
+			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
+			break
 		}
 	}
 }
@@ -266,7 +292,7 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 	return fmt.Errorf("card not found in deck (already drawn?)")
 }
 
-func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool {
+func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	fmt.Printf("Played: %v\n", card)
 
 	// Special handling for Actions
@@ -289,7 +315,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool
 			}
 		}
 		// Action cards allow turn to continue?
-		// User correction: "After drawing three cards due to Flip Three, turn should be passed to the next candidates..."
+		// User correction (see issue #17): "After drawing three cards due to Flip Three, turn should be passed to the next candidates..."
 		// This implies Action cards (Flip Three, Freeze) END the turn after resolution.
 		// Add to hand first
 		p.CurrentHand.AddCard(card)
@@ -299,7 +325,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool
 		score := calc.Compute(p.CurrentHand)
 		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
 
-		return false // Turn ends
+		return
 	}
 
 	// Add card to hand logic
@@ -308,7 +334,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool
 	if busted {
 		fmt.Println("BUSTED!")
 		p.CurrentHand.Status = domain.HandStatusBusted
-		return false // Turn ends
+		return
 	} else if flip7 {
 		fmt.Println("FLIP 7!")
 		p.CurrentHand.Status = domain.HandStatusStayed
@@ -318,13 +344,13 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) bool
 		s.Game.CurrentRound.IsEnded = true
 		s.Game.CurrentRound.EndReason = domain.RoundEndReasonFlip7
 
-		return false // Turn ends
+		return
 	} else {
 		// Show current hand score
 		calc := domain.NewScoreCalculator()
 		score := calc.Compute(p.CurrentHand)
 		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
-		return false // Turn ends (Number/Modifier)
+		return
 	}
 }
 
@@ -354,13 +380,13 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 }
 
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
-	// Target must draw 3 cards.
-	// We need to prompt the user to input these 3 cards.
-	for i := 0; i < 3; i++ {
+	// resolveFlipThreeManual prompts the user to input 3 cards for the target player and processes each card,
+	// handling busts and action cards according to game rules.
+	for i := 0; i < FlipThreeCardCount; i++ {
 		if target.CurrentHand.Status != domain.HandStatusActive {
 			break
 		}
-		fmt.Printf("Input card %d/3 for %s: ", i+1, target.Name)
+		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
 		input, _ := s.Reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
@@ -413,6 +439,12 @@ func (s *ManualGameService) bankPoints(p *domain.Player) {
 }
 
 func (s *ManualGameService) printWinner() {
-	// ... (reuse logic or just print)
-	fmt.Println("Game Over.")
+	if len(s.Game.Winners) == 0 {
+		fmt.Println("Game Over. No winner determined.")
+		return
+	}
+	fmt.Println("Game Over. Winner(s):")
+	for _, winner := range s.Game.Winners {
+		fmt.Printf(" - %s with %d points\n", winner.Name, winner.TotalScore)
+	}
 }

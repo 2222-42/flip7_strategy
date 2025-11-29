@@ -63,6 +63,12 @@ func NewRound(players []*Player, dealer *Player, deck *Deck) *Round {
 	}
 }
 
+// End marks the round as ended with a reason.
+func (r *Round) End(reason RoundEndReason) {
+	r.IsEnded = true
+	r.EndReason = reason
+}
+
 // Game represents the entire game session.
 type Game struct {
 	ID           uuid.UUID `json:"id"`
