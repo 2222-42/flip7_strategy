@@ -91,6 +91,7 @@ func (s *ManualGameService) setupPlayers() {
 
 func (s *ManualGameService) gameLoop() {
 	for !s.Game.IsCompleted {
+		s.Game.RoundCount++
 		s.playRound()
 		// Rotate dealer for next round
 		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
@@ -145,7 +146,6 @@ func (s *ManualGameService) playRound() {
 				input = strings.TrimSpace(input)
 
 				if strings.EqualFold(input, "S") {
-					// Validation: Cannot stay on first turn (empty hand)
 					// Validation: Cannot stay on first turn (empty hand) unless special conditions met
 					if !currentPlayer.CurrentHand.CanStay() {
 						fmt.Println("Invalid move: You must hit on your first turn (unless you have points or specific actions)!")
@@ -358,17 +358,15 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
 
 		// Flip 7 ends the round immediately
-		s.Game.CurrentRound.IsEnded = true
-		s.Game.CurrentRound.EndReason = domain.RoundEndReasonFlip7
+		s.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
 
 		return
-	} else {
-		// Show current hand score
-		calc := domain.NewScoreCalculator()
-		score := calc.Compute(p.CurrentHand)
-		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
-		return
 	}
+	// Show current hand score
+	calc := domain.NewScoreCalculator()
+	score := calc.Compute(p.CurrentHand)
+	fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
+	return
 }
 
 // promptForTarget prompts the player to select a target for an action card.

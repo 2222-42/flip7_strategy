@@ -47,11 +47,35 @@ func (h *PlayerHand) HasSecondChance() bool {
 func (h *PlayerHand) CanStay() bool {
 	// Conditions to stay:
 	// 1. Has at least one Number card (standard rule)
-	// 2. Has at least one Modifier card (points!)
+	// 2. Has at least one effective Modifier card (not just X2 with no numbers/additives)
 	// 3. Has Second Chance AND at least one other Action card (strategic stay)
 	return len(h.NumberCards) > 0 ||
-		len(h.ModifierCards) > 0 ||
+		h.HasEffectiveModifiers() ||
 		(h.HasSecondChance() && len(h.ActionCards) > 1)
+}
+
+// HasEffectiveModifiers checks if the modifier cards would actually contribute points.
+func (h *PlayerHand) HasEffectiveModifiers() bool {
+	// If there are no modifier cards, return false
+	if len(h.ModifierCards) == 0 {
+		return false
+	}
+	// If there is at least one number card, modifiers will contribute
+	if len(h.NumberCards) > 0 {
+		return true
+	}
+	// If there is at least one additive modifier (e.g., +2), allow stay
+	for _, c := range h.ModifierCards {
+		if c.ModifierType == ModifierPlus2 ||
+			c.ModifierType == ModifierPlus4 ||
+			c.ModifierType == ModifierPlus6 ||
+			c.ModifierType == ModifierPlus8 ||
+			c.ModifierType == ModifierPlus10 {
+			return true
+		}
+	}
+	// Only X2 (or other non-additive) modifiers with no numbers/additives: not effective
+	return false
 }
 
 // NewPlayerHand creates a new empty hand.
