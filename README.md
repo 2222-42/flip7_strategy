@@ -89,7 +89,7 @@ flip7_strategy/
 ```
 
 ## Rules Implemented
-- **Turn Order**: Dealer goes first.
+- **Turn Order**: Dealer goes first. The Dealer role rotates to the next player (round-robin) after each round.
 - **Busting**: Drawing a duplicate number card ends your turn (unless you have a Second Chance).
 - **Flip 7**: Collecting 7 cards grants a 15-point bonus (or more depending on house rules implemented).
 - **Action Cards**:
