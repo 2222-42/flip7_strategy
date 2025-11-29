@@ -366,7 +366,6 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	calc := domain.NewScoreCalculator()
 	score := calc.Compute(p.CurrentHand)
 	fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
-	return
 }
 
 // promptForTarget prompts the player to select a target for an action card.

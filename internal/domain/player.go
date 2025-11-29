@@ -66,11 +66,7 @@ func (h *PlayerHand) HasEffectiveModifiers() bool {
 	}
 	// If there is at least one additive modifier (e.g., +2), allow stay
 	for _, c := range h.ModifierCards {
-		if c.ModifierType == ModifierPlus2 ||
-			c.ModifierType == ModifierPlus4 ||
-			c.ModifierType == ModifierPlus6 ||
-			c.ModifierType == ModifierPlus8 ||
-			c.ModifierType == ModifierPlus10 {
+		if c.ModifierType.IsAdditive() {
 			return true
 		}
 	}
