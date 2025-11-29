@@ -143,8 +143,9 @@ func (s *GameService) PlayRound() {
 
 			if choice == domain.TurnChoiceStay {
 				p.CurrentHand.Status = domain.HandStatusStayed
-				s.BankPoints(p)
-				s.RemoveActivePlayer(p)
+				score := p.BankCurrentHand()
+				s.log("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
+				s.Game.CurrentRound.RemoveActivePlayer(p)
 			} else {
 				// Hit
 				card, err := s.DrawCard()
@@ -226,12 +227,13 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 
 	if busted {
 		s.log("%s BUSTED!\n", p.Name)
-		s.RemoveActivePlayer(p)
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 	} else if flip7 {
 		s.log("%s FLIP 7! Bonus!\n", p.Name)
 		p.CurrentHand.Status = domain.HandStatusStayed
-		s.BankPoints(p)
-		s.RemoveActivePlayer(p)
+		score := p.BankCurrentHand()
+		s.log("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 		round.EndReason = domain.RoundEndReasonFlip7
 		round.IsEnded = true
 	} else {
@@ -257,8 +259,9 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 		s.log("%s uses Freeze on %s\n", p.Name, target.Name)
 
 		target.CurrentHand.Status = domain.HandStatusFrozen
-		s.BankPoints(target)
-		s.RemoveActivePlayer(target)
+		score := target.BankCurrentHand()
+		s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
+		s.Game.CurrentRound.RemoveActivePlayer(target)
 
 	case domain.ActionFlipThree:
 		candidates := []*domain.Player{}
@@ -321,8 +324,9 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 				if totalCards >= 7 {
 					s.log("%s FLIP 7! Bonus!\n", target.Name)
 					target.CurrentHand.Status = domain.HandStatusStayed
-					s.BankPoints(target)
-					s.RemoveActivePlayer(target)
+					score := target.BankCurrentHand()
+					s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
+					s.Game.CurrentRound.RemoveActivePlayer(target)
 					round.EndReason = domain.RoundEndReasonFlip7
 					round.IsEnded = true
 					return
@@ -350,21 +354,4 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 	}
 
 	s.log("--- End of Flip Three for %s ---\n", target.Name)
-}
-
-func (s *GameService) RemoveActivePlayer(p *domain.Player) {
-	round := s.Game.CurrentRound
-	for i, ap := range round.ActivePlayers {
-		if ap.ID == p.ID {
-			round.ActivePlayers = append(round.ActivePlayers[:i], round.ActivePlayers[i+1:]...)
-			return
-		}
-	}
-}
-
-func (s *GameService) BankPoints(p *domain.Player) {
-	calc := domain.NewScoreCalculator()
-	score := calc.Compute(p.CurrentHand)
-	p.BankScore(score.Total)
-	s.log("%s banked %d points! Total: %d\n", p.Name, score.Total, p.TotalScore)
 }

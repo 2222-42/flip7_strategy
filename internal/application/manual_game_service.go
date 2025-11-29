@@ -147,14 +147,15 @@ func (s *ManualGameService) playRound() {
 				if strings.EqualFold(input, "S") {
 					// Validation: Cannot stay on first turn (empty hand)
 					// Validation: Cannot stay on first turn (empty hand) unless special conditions met
-					if !s.canPlayerStay(currentPlayer.CurrentHand) {
+					if !currentPlayer.CurrentHand.CanStay() {
 						fmt.Println("Invalid move: You must hit on your first turn (unless you have points or specific actions)!")
 						continue
 					}
 
 					currentPlayer.CurrentHand.Status = domain.HandStatusStayed
-					s.bankPoints(currentPlayer)
-					s.removeActivePlayer(currentPlayer)
+					score := currentPlayer.BankCurrentHand()
+					fmt.Printf("%s banked %d points! Total: %d\n", currentPlayer.Name, score, currentPlayer.TotalScore)
+					s.Game.CurrentRound.RemoveActivePlayer(currentPlayer)
 					turnEnded = true
 				} else {
 					// Parse card or action
@@ -187,16 +188,6 @@ func (s *ManualGameService) playRound() {
 		if !s.Game.CurrentRound.IsEnded && len(s.Game.CurrentRound.ActivePlayers) == 0 {
 			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
 			break
-		}
-	}
-}
-
-func (s *ManualGameService) removeActivePlayer(p *domain.Player) {
-	round := s.Game.CurrentRound
-	for i, ap := range round.ActivePlayers {
-		if ap.ID == p.ID {
-			round.ActivePlayers = append(round.ActivePlayers[:i], round.ActivePlayers[i+1:]...)
-			return
 		}
 	}
 }
@@ -308,8 +299,9 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 				case domain.ActionFreeze:
 					fmt.Printf("Freezing %s!\n", target.Name)
 					target.CurrentHand.Status = domain.HandStatusFrozen
-					s.bankPoints(target)
-					s.removeActivePlayer(target)
+					score := target.BankCurrentHand()
+					fmt.Printf("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
+					s.Game.CurrentRound.RemoveActivePlayer(target)
 				case domain.ActionFlipThree:
 					fmt.Printf("Flip Three on %s! They must draw 3 cards.\n", target.Name)
 					s.resolveFlipThreeManual(target)
@@ -340,7 +332,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	} else if flip7 {
 		fmt.Println("FLIP 7!")
 		p.CurrentHand.Status = domain.HandStatusStayed
-		s.bankPoints(p)
+		score := p.BankCurrentHand()
+		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
 
 		// Flip 7 ends the round immediately
 		s.Game.CurrentRound.IsEnded = true
@@ -437,13 +430,6 @@ func (s *ManualGameService) formatHand(h *domain.PlayerHand) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func (s *ManualGameService) bankPoints(p *domain.Player) {
-	calc := domain.NewScoreCalculator()
-	score := calc.Compute(p.CurrentHand)
-	p.TotalScore += score.Total
-	fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score.Total, p.TotalScore)
-}
-
 func (s *ManualGameService) printWinner() {
 	if len(s.Game.Winners) == 0 {
 		fmt.Println("Game Over. No winner determined.")
@@ -453,14 +439,4 @@ func (s *ManualGameService) printWinner() {
 	for _, winner := range s.Game.Winners {
 		fmt.Printf(" - %s with %d points\n", winner.Name, winner.TotalScore)
 	}
-}
-
-func (s *ManualGameService) canPlayerStay(hand *domain.PlayerHand) bool {
-	// Conditions to stay:
-	// 1. Has at least one Number card (standard rule)
-	// 2. Has at least one Modifier card (points!)
-	// 3. Has Second Chance AND at least one other Action card (strategic stay)
-	return len(hand.NumberCards) > 0 ||
-		len(hand.ModifierCards) > 0 ||
-		(hand.HasSecondChance() && len(hand.ActionCards) > 1)
 }

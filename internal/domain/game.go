@@ -111,3 +111,13 @@ func (g *Game) DetermineWinners() []*Player {
 
 	return candidates
 }
+
+// RemoveActivePlayer removes a player from the active players list.
+func (r *Round) RemoveActivePlayer(p *Player) {
+	for i, ap := range r.ActivePlayers {
+		if ap.ID == p.ID {
+			r.ActivePlayers = append(r.ActivePlayers[:i], r.ActivePlayers[i+1:]...)
+			return
+		}
+	}
+}

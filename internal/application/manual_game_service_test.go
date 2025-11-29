@@ -7,7 +7,6 @@ import (
 )
 
 func TestCanPlayerStay(t *testing.T) {
-	service := &ManualGameService{}
 
 	tests := []struct {
 		name     string
@@ -79,8 +78,8 @@ func TestCanPlayerStay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := service.canPlayerStay(tt.hand); got != tt.expected {
-				t.Errorf("canPlayerStay() = %v, want %v", got, tt.expected)
+			if got := tt.hand.CanStay(); got != tt.expected {
+				t.Errorf("CanStay() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
