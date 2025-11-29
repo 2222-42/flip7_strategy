@@ -284,17 +284,41 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 	return fmt.Errorf("card not found in deck (already drawn?)")
 }
 
+// processCard handles the logic of adding a card to a player's hand and resolving its effects.
+//
+// Action Card Processing Order (based on domain model - docs/domain_model.md):
+// - Flip Three & Freeze: The player who DRAWS the card chooses a target player.
+//   The action effect is applied to the TARGET player, then the card is added to the DRAWER's hand.
+//   This order is important because:
+//   1. The drawer must choose a target before knowing the full outcome
+//   2. The target processes the effect (e.g., draws 3 cards for Flip Three)
+//   3. Only after resolution does the drawer add the action card to their own hand
+//
+// - Second Chance: Added to drawer's hand immediately. Per domain model (lines 173-175),
+//   if the drawer already has one, they must pass it to another active player (or discard
+//   if no valid target).
+//   NOTE: In Manual Mode, this passing logic is NOT automated. When a player draws a Second
+//   Chance and already has one, the user should track this situation and manually decide which
+//   active player receives it, then input the Second Chance card during that target player's
+//   turn instead of the original drawer's turn.
+//
+// - During Flip Three: Per domain model (lines 169-172), if the target draws another Flip Three
+//   or Freeze while drawing their 3 cards, those action cards are queued and resolved AFTER all
+//   3 cards are drawn (if the target hasn't busted). See resolveFlipThreeManual for details.
+//
+// Number/Modifier Cards: Added to the player's hand immediately, checked for bust/flip7.
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	fmt.Printf("Played: %v\n", card)
 
 	// Special handling for Actions
 	if card.Type == domain.CardTypeAction {
 		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
-			// Prompt for target
+			// Step 1: Prompt the drawer (p) to choose a target player for the action
 			target := s.promptForTarget(p)
 			if target == nil {
 				fmt.Println("No target selected (or invalid). Action cancelled (card still played).")
 			} else {
+				// Step 2: Apply the action effect to the TARGET player
 				switch card.ActionType {
 				case domain.ActionFreeze:
 					fmt.Printf("Freezing %s!\n", target.Name)
@@ -308,10 +332,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 				}
 			}
 		}
-		// Action cards allow turn to continue?
-		// User correction (see issue #17): "After drawing three cards due to Flip Three, turn should be passed to the next candidates..."
-		// This implies Action cards (Flip Three, Freeze) END the turn after resolution.
-		// Add to hand first
+		// Step 3: Add the action card to the DRAWER's (p) hand after effect resolution
+		// Note: Per issue #17, action cards (Flip Three, Freeze) end the turn after resolution.
 		p.CurrentHand.AddCard(card)
 
 		// Show current hand score
@@ -349,11 +371,12 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	}
 }
 
+// promptForTarget prompts the player to select a target for an action card.
+// Valid targets include all active players, including the player themselves.
+// Strategic reasons for self-targeting:
+// - Freeze: Bank current points immediately (defensive play)
+// - Flip Three: Force yourself to draw 3 cards (aggressive play when needing points)
 func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
-	// Candidates include ALL active players, including self.
-	// Wait, can you freeze yourself? Yes, to bank points immediately.
-	// Can you Flip Three yourself? Yes, risky but possible.
-
 	candidates := s.Game.CurrentRound.ActivePlayers
 	if len(candidates) == 0 {
 		fmt.Println("No active players to target.")
@@ -374,13 +397,22 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 	return candidates[idx-1]
 }
 
+// resolveFlipThreeManual handles the Flip Three action effect on the target player.
+// Per domain model (docs/domain_model.md lines 169-172), Flip Three forces the target to:
+// 1. Draw 3 cards one by one
+// 2. If Second Chance is drawn: Process normally (set aside/use if duplicate drawn)
+// 3. If Flip Three or Freeze is drawn: Queue it and resolve AFTER all 3 cards are drawn
+//    (only if the target hasn't busted)
+//
+// This function prompts the user to input 3 cards for the target player and processes
+// each card according to these rules. The loop exits early if the target busts.
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
-	// resolveFlipThreeManual prompts the user to input 3 cards for the target player and processes each card,
-	// handling busts and action cards according to game rules.
 	for i := 0; i < FlipThreeCardCount; i++ {
+		// Exit early if target is no longer active (busted or other status change)
 		if target.CurrentHand.Status != domain.HandStatusActive {
 			break
 		}
+
 		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
 		input, _ := s.Reader.ReadString('\n')
 		input = strings.TrimSpace(input)
@@ -388,29 +420,29 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 		card, err := s.parseInput(input)
 		if err != nil {
 			fmt.Printf("Invalid input: %v. Try again.\n", err)
-			i-- // Retry
+			i-- // Retry this card
 			continue
 		}
 
 		if err := s.removeCardFromDeck(card); err != nil {
 			fmt.Printf("Error: %v. Try again.\n", err)
-			i-- // Retry
+			i-- // Retry this card
 			continue
 		}
 
-		// Process this card for the target
-		// Note: Recursive call to processCard?
-		// If the drawn card is an Action (e.g. Second Chance), it applies to target.
-		// If it's Flip Three/Freeze, it's queued (per rules).
-		// Manual mode simplification: Just process it.
-		// But wait, if target draws Flip Three inside Flip Three, it should be queued.
-		// Implementing full queue logic in Manual Mode might be overkill but let's try to be correct.
-		// For now, let's just add it to hand and warn if it's an action.
-
+		// Handle cards drawn during Flip Three according to game rules:
+		// - Number/Modifier/Second Chance: Process immediately via processCard
+		// - Flip Three/Freeze: Queue for later resolution (added to hand, resolved manually after)
+		//
+		// Note: In Manual Mode, we simplify by adding queued actions to the hand with a warning.
+		// The user is expected to track and resolve these actions manually after the 3 draws.
+		// A full implementation would maintain a separate action queue and auto-resolve.
 		if card.Type == domain.CardTypeAction && (card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze) {
-			fmt.Println("Action card drawn during Flip Three! It should be queued. (Manual Mode: Added to hand, resolve manually after if needed)")
+			fmt.Println("Action card drawn during Flip Three! Per game rules, this should be queued.")
+			fmt.Println("(Manual Mode: Card added to hand. Resolve manually after completing all 3 draws.)")
 			target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
 		} else {
+			// Process number cards, modifiers, and Second Chance immediately
 			s.processCard(target, card)
 		}
 	}
