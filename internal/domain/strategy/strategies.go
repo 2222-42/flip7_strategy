@@ -7,7 +7,13 @@ import (
 )
 
 // CautiousStrategy stays if the risk is even slightly elevated.
-type CautiousStrategy struct{}
+type CautiousStrategy struct {
+	deck *domain.Deck
+}
+
+func (s *CautiousStrategy) SetDeck(d *domain.Deck) {
+	s.deck = d
+}
 
 func (s *CautiousStrategy) Name() string {
 	return "Cautious"
@@ -51,6 +57,22 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 				}
 			}
 		}
+
+		// Refined Logic:
+		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
+		// Otherwise, target opponent to stop them.
+		if self.TotalScore > maxScore {
+			risk := 0.0
+			if s.deck != nil {
+				risk = s.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
+			}
+			// If risk is high (> 50%), freeze self to be safe.
+			if risk > 0.5 {
+				return self
+			}
+			// If risk is low, we might want to continue (so freeze opponent).
+		}
+
 		if bestTarget != nil {
 			return bestTarget
 		}
@@ -96,7 +118,13 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 }
 
 // AggressiveStrategy pushes luck until high risk.
-type AggressiveStrategy struct{}
+type AggressiveStrategy struct {
+	deck *domain.Deck
+}
+
+func (s *AggressiveStrategy) SetDeck(d *domain.Deck) {
+	s.deck = d
+}
 
 // NewAggressiveStrategy returns a new AggressiveStrategy instance.
 func NewAggressiveStrategy() *AggressiveStrategy {
@@ -141,6 +169,22 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 				}
 			}
 		}
+
+		// Refined Logic:
+		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
+		// Otherwise, target opponent to stop them.
+		if self.TotalScore > maxScore {
+			risk := 0.0
+			if s.deck != nil {
+				risk = s.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
+			}
+			// If risk is high (> 50%), freeze self to be safe.
+			if risk > 0.5 {
+				return self
+			}
+			// If risk is low, we might want to continue (so freeze opponent).
+		}
+
 		if bestTarget != nil {
 			return bestTarget
 		}
@@ -192,6 +236,22 @@ func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates 
 				}
 			}
 		}
+
+		// Refined Logic:
+		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
+		// Otherwise, target opponent to stop them.
+		if self.TotalScore > maxScore {
+			risk := 0.0
+			if c.deck != nil {
+				risk = c.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
+			}
+			// If risk is high (> 50%), freeze self to be safe.
+			if risk > 0.5 {
+				return self
+			}
+			// If risk is low, we might want to continue (so freeze opponent).
+		}
+
 		if bestTarget != nil {
 			return bestTarget
 		}

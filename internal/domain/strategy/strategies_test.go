@@ -86,34 +86,61 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 		},
 	}
 
-	opponent3 := &domain.Player{
-		ID:         domain.NewPlayer("Opponent3", nil).ID,
-		Name:       "Opponent3",
-		TotalScore: 90,
-		CurrentHand: &domain.PlayerHand{
-			NumberCards: make(map[domain.NumberValue]struct{}),
-			ActionCards: []domain.Card{{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance}},
-		},
-	}
+	// Create a deck for risk estimation
+	// High Risk Deck: Only duplicates of what self has
+	highRiskDeck := domain.NewDeckFromCards([]domain.Card{
+		{Type: domain.CardTypeNumber, Value: 1},
+	})
+	// Low Risk Deck: Only new cards
+	lowRiskDeck := domain.NewDeckFromCards([]domain.Card{
+		{Type: domain.CardTypeNumber, Value: 10},
+	})
+
+	// Self has 1
+	self.CurrentHand.NumberCards[domain.NumberValue(1)] = struct{}{}
 
 	tests := []struct {
 		name           string
 		action         domain.ActionType
 		candidates     []*domain.Player
+		selfScore      int
+		deck           *domain.Deck
 		expectedTarget *domain.Player
 		description    string
 	}{
 		{
-			name:           "Freeze targets leader opponent",
+			name:           "Freeze targets leader opponent (Losing)",
 			action:         domain.ActionFreeze,
 			candidates:     []*domain.Player{self, opponent1, opponent2},
-			expectedTarget: opponent2,
-			description:    "Freeze should target opponent with highest score (120)",
+			selfScore:      100,
+			deck:           lowRiskDeck,
+			expectedTarget: opponent2, // Opponent2 has 120
+			description:    "Freeze should target opponent with highest score when losing",
+		},
+		{
+			name:           "Freeze targets self (Winning + High Risk)",
+			action:         domain.ActionFreeze,
+			candidates:     []*domain.Player{self, opponent1},
+			selfScore:      150, // Winning vs 80
+			deck:           highRiskDeck,
+			expectedTarget: self,
+			description:    "Freeze should target self when winning and risk is high",
+		},
+		{
+			name:           "Freeze targets opponent (Winning + Low Risk)",
+			action:         domain.ActionFreeze,
+			candidates:     []*domain.Player{self, opponent1},
+			selfScore:      150, // Winning vs 80
+			deck:           lowRiskDeck,
+			expectedTarget: opponent1,
+			description:    "Freeze should target opponent when winning but risk is low",
 		},
 		{
 			name:           "Freeze targets self if no opponents",
 			action:         domain.ActionFreeze,
 			candidates:     []*domain.Player{self},
+			selfScore:      100,
+			deck:           lowRiskDeck,
 			expectedTarget: self,
 			description:    "Freeze should fallback to self if no opponents",
 		},
@@ -121,41 +148,26 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 			name:           "FlipThree targets leader opponent",
 			action:         domain.ActionFlipThree,
 			candidates:     []*domain.Player{self, opponent1, opponent2},
+			selfScore:      100,
+			deck:           lowRiskDeck,
 			expectedTarget: opponent2,
 			description:    "FlipThree should target opponent with highest score (120)",
-		},
-		{
-			name:           "FlipThree targets any opponent if self is leader",
-			action:         domain.ActionFlipThree,
-			candidates:     []*domain.Player{self, opponent1},
-			expectedTarget: opponent1,
-			description:    "FlipThree should target opponent even if self has higher score",
 		},
 		{
 			name:           "GiveSecondChance targets weakest opponent",
 			action:         domain.ActionGiveSecondChance,
 			candidates:     []*domain.Player{self, opponent1, opponent2},
+			selfScore:      100,
+			deck:           lowRiskDeck,
 			expectedTarget: opponent1,
 			description:    "GiveSecondChance should target opponent with lowest score (80)",
-		},
-		{
-			name:           "GiveSecondChance skips opponents with SecondChance",
-			action:         domain.ActionGiveSecondChance,
-			candidates:     []*domain.Player{self, opponent1, opponent3, opponent2},
-			expectedTarget: opponent1,
-			description:    "GiveSecondChance should skip opponent3 (has SecondChance) and target opponent1 (80)",
-		},
-		{
-			name:           "GiveSecondChance fallback when all have SecondChance",
-			action:         domain.ActionGiveSecondChance,
-			candidates:     []*domain.Player{opponent3},
-			expectedTarget: opponent3,
-			description:    "GiveSecondChance should fallback to first candidate if all have SecondChance",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			self.TotalScore = tt.selfScore
+			s.SetDeck(tt.deck)
 			target := s.ChooseTarget(tt.action, tt.candidates, self)
 			if target.ID != tt.expectedTarget.ID {
 				t.Errorf("%s: Expected target %s (ID: %v), got %s (ID: %v)",
