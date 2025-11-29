@@ -2,6 +2,8 @@ package domain
 
 import (
 	"errors"
+	"math/rand"
+	"time"
 )
 
 // CardType represents the category of a card.
@@ -104,7 +106,8 @@ func NewDeck() *Deck {
 
 // Shuffle randomizes the deck order.
 func (d *Deck) Shuffle() {
-	Shuffle(len(d.Cards), func(i, j int) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(d.Cards), func(i, j int) {
 		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	})
 }
