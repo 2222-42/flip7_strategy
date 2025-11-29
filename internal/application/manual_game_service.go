@@ -303,12 +303,13 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 			if target == nil {
 				fmt.Println("No target selected (or invalid). Action cancelled (card still played).")
 			} else {
-				if card.ActionType == domain.ActionFreeze {
+				switch card.ActionType {
+				case domain.ActionFreeze:
 					fmt.Printf("Freezing %s!\n", target.Name)
 					target.CurrentHand.Status = domain.HandStatusFrozen
 					s.bankPoints(target)
 					s.removeActivePlayer(target)
-				} else if card.ActionType == domain.ActionFlipThree {
+				case domain.ActionFlipThree:
 					fmt.Printf("Flip Three on %s! They must draw 3 cards.\n", target.Name)
 					s.resolveFlipThreeManual(target)
 				}
@@ -397,7 +398,11 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 			continue
 		}
 
-		s.removeCardFromDeck(card)
+		if err := s.removeCardFromDeck(card); err != nil {
+			fmt.Printf("Error: %v. Try again.\n", err)
+			i-- // Retry
+			continue
+		}
 
 		// Process this card for the target
 		// Note: Recursive call to processCard?
