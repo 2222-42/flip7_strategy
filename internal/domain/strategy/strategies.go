@@ -45,38 +45,7 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 	// GiveSecondChance -> Player with lowest score (keep game balanced)
 
 	if action == domain.ActionFreeze {
-		// Freeze -> Opponent with highest score
-		var bestTarget *domain.Player
-		maxScore := -1
-
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				if p.TotalScore > maxScore {
-					maxScore = p.TotalScore
-					bestTarget = p
-				}
-			}
-		}
-
-		// Refined Logic:
-		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
-		// Otherwise, target opponent to stop them.
-		if self.TotalScore > maxScore {
-			risk := 0.0
-			if s.deck != nil {
-				risk = s.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
-			}
-			// If risk is high (> 50%), freeze self to be safe.
-			if risk > 0.5 {
-				return self
-			}
-			// If risk is low, we might want to continue (so freeze opponent).
-		}
-
-		if bestTarget != nil {
-			return bestTarget
-		}
-		return self
+		return chooseFreezeTarget(candidates, self, s.deck)
 	}
 
 	if action == domain.ActionGiveSecondChance {
@@ -157,38 +126,7 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 	// GiveSecondChance -> Random player
 
 	if action == domain.ActionFreeze {
-		// Freeze -> Opponent with highest score
-		var bestTarget *domain.Player
-		maxScore := -1
-
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				if p.TotalScore > maxScore {
-					maxScore = p.TotalScore
-					bestTarget = p
-				}
-			}
-		}
-
-		// Refined Logic:
-		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
-		// Otherwise, target opponent to stop them.
-		if self.TotalScore > maxScore {
-			risk := 0.0
-			if s.deck != nil {
-				risk = s.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
-			}
-			// If risk is high (> 50%), freeze self to be safe.
-			if risk > 0.5 {
-				return self
-			}
-			// If risk is low, we might want to continue (so freeze opponent).
-		}
-
-		if bestTarget != nil {
-			return bestTarget
-		}
-		return self
+		return chooseFreezeTarget(candidates, self, s.deck)
 	}
 
 	if action == domain.ActionGiveSecondChance {
@@ -224,38 +162,7 @@ func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates 
 	// GiveSecondChance -> Weakest opponent (least threat).
 
 	if action == domain.ActionFreeze {
-		// Freeze -> Opponent with highest score
-		var bestTarget *domain.Player
-		maxScore := -1
-
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				if p.TotalScore > maxScore {
-					maxScore = p.TotalScore
-					bestTarget = p
-				}
-			}
-		}
-
-		// Refined Logic:
-		// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
-		// Otherwise, target opponent to stop them.
-		if self.TotalScore > maxScore {
-			risk := 0.0
-			if c.deck != nil {
-				risk = c.deck.EstimateHitRisk(self.CurrentHand.NumberCards)
-			}
-			// If risk is high (> 50%), freeze self to be safe.
-			if risk > 0.5 {
-				return self
-			}
-			// If risk is low, we might want to continue (so freeze opponent).
-		}
-
-		if bestTarget != nil {
-			return bestTarget
-		}
-		return self
+		return chooseFreezeTarget(candidates, self, c.deck)
 	}
 
 	if action == domain.ActionFlipThree {
@@ -369,6 +276,42 @@ func (s *ProbabilisticStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 		return domain.TurnChoiceStay
 	}
 	return domain.TurnChoiceHit
+}
+
+// chooseFreezeTarget encapsulates the logic for selecting a target for ActionFreeze.
+func chooseFreezeTarget(candidates []*domain.Player, self *domain.Player, deck *domain.Deck) *domain.Player {
+	// Freeze -> Opponent with highest score
+	var bestTarget *domain.Player
+	maxScore := -1
+
+	for _, p := range candidates {
+		if p.ID != self.ID {
+			if p.TotalScore > maxScore {
+				maxScore = p.TotalScore
+				bestTarget = p
+			}
+		}
+	}
+
+	// Refined Logic:
+	// If we are winning (score > maxScore) AND risk is high, target Self to secure win.
+	// Otherwise, target opponent to stop them.
+	if self.TotalScore > maxScore {
+		risk := 0.0
+		if deck != nil {
+			risk = deck.EstimateHitRisk(self.CurrentHand.NumberCards)
+		}
+		// If risk is high (> 50%), freeze self to be safe.
+		if risk > 0.5 {
+			return self
+		}
+		// If risk is low, we might want to continue (so freeze opponent).
+	}
+
+	if bestTarget != nil {
+		return bestTarget
+	}
+	return self
 }
 
 const DefaultHeuristicThreshold = 27
