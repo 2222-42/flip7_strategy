@@ -146,8 +146,9 @@ func (s *ManualGameService) playRound() {
 
 				if strings.EqualFold(input, "S") {
 					// Validation: Cannot stay on first turn (empty hand)
-					if len(currentPlayer.CurrentHand.NumberCards) == 0 {
-						fmt.Println("Invalid move: You must hit on your first turn!")
+					// Validation: Cannot stay on first turn (empty hand) unless special conditions met
+					if !s.canPlayerStay(currentPlayer.CurrentHand) {
+						fmt.Println("Invalid move: You must hit on your first turn (unless you have points or specific actions)!")
 						continue
 					}
 
@@ -452,4 +453,14 @@ func (s *ManualGameService) printWinner() {
 	for _, winner := range s.Game.Winners {
 		fmt.Printf(" - %s with %d points\n", winner.Name, winner.TotalScore)
 	}
+}
+
+func (s *ManualGameService) canPlayerStay(hand *domain.PlayerHand) bool {
+	// Conditions to stay:
+	// 1. Has at least one Number card (standard rule)
+	// 2. Has at least one Modifier card (points!)
+	// 3. Has Second Chance AND at least one other Action card (strategic stay)
+	return len(hand.NumberCards) > 0 ||
+		len(hand.ModifierCards) > 0 ||
+		(hand.HasSecondChance() && len(hand.ActionCards) > 1)
 }
