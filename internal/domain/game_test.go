@@ -76,3 +76,66 @@ func TestDetermineWinners(t *testing.T) {
 		})
 	}
 }
+
+func TestRoundRobinDealerRotation(t *testing.T) {
+	p1 := domain.NewPlayer("P1", nil)
+	p2 := domain.NewPlayer("P2", nil)
+	p3 := domain.NewPlayer("P3", nil)
+	players := []*domain.Player{p1, p2, p3}
+	game := domain.NewGame(players)
+
+	if game.DealerIndex != 0 {
+		t.Errorf("Expected initial DealerIndex 0, got %d", game.DealerIndex)
+	}
+
+	game.CurrentRound = domain.NewRound(game.Players, game.Players[game.DealerIndex], domain.NewDeck())
+	if game.CurrentRound.Dealer.ID != p1.ID {
+		t.Errorf("Round 1: Expected Dealer P1, got %s", game.CurrentRound.Dealer.Name)
+	}
+	if len(game.CurrentRound.ActivePlayers) != 3 {
+		t.Errorf("Round 1: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
+		return
+	}
+	if game.CurrentRound.ActivePlayers[0].ID != p1.ID {
+		t.Errorf("Round 1: Expected Start Player P1, got %s", game.CurrentRound.ActivePlayers[0].Name)
+	}
+
+	game.DealerIndex = (game.DealerIndex + 1) % len(game.Players)
+
+	game.CurrentRound = domain.NewRound(game.Players, game.Players[game.DealerIndex], domain.NewDeck())
+	if game.CurrentRound.Dealer.ID != p2.ID {
+		t.Errorf("Round 2: Expected Dealer P2, got %s", game.CurrentRound.Dealer.Name)
+	}
+	if len(game.CurrentRound.ActivePlayers) != 3 {
+		t.Errorf("Round 2: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
+		return
+	}
+	if game.CurrentRound.ActivePlayers[0].ID != p2.ID {
+		t.Errorf("Round 2: Expected Start Player P2, got %s", game.CurrentRound.ActivePlayers[0].Name)
+	}
+	if game.CurrentRound.ActivePlayers[1].ID != p3.ID {
+		t.Errorf("Round 2: Expected Second Player P3, got %s", game.CurrentRound.ActivePlayers[1].Name)
+	}
+	if game.CurrentRound.ActivePlayers[2].ID != p1.ID {
+		t.Errorf("Round 2: Expected Third Player P1, got %s", game.CurrentRound.ActivePlayers[2].Name)
+	}
+
+	game.DealerIndex = (game.DealerIndex + 1) % len(game.Players)
+
+	game.CurrentRound = domain.NewRound(game.Players, game.Players[game.DealerIndex], domain.NewDeck())
+	if game.CurrentRound.Dealer.ID != p3.ID {
+		t.Errorf("Round 3: Expected Dealer P3, got %s", game.CurrentRound.Dealer.Name)
+	}
+	if len(game.CurrentRound.ActivePlayers) != 3 {
+		t.Errorf("Round 3: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
+		return
+	}
+	if game.CurrentRound.ActivePlayers[0].ID != p3.ID {
+		t.Errorf("Round 3: Expected Start Player P3, got %s", game.CurrentRound.ActivePlayers[0].Name)
+	}
+
+	game.DealerIndex = (game.DealerIndex + 1) % len(game.Players)
+	if game.DealerIndex != 0 {
+		t.Errorf("Expected DealerIndex to wrap to 0, got %d", game.DealerIndex)
+	}
+}
