@@ -1,4 +1,4 @@
-package application
+package application_test
 
 import (
 	"testing"
@@ -28,13 +28,22 @@ func TestCanPlayerStay(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "Only Modifier cards",
+			name: "Only Modifier cards (additive)",
 			hand: func() *domain.PlayerHand {
 				h := domain.NewPlayerHand()
 				h.AddCard(domain.Card{Type: domain.CardTypeModifier, ModifierType: domain.ModifierPlus2})
 				return h
 			}(),
 			expected: true,
+		},
+		{
+			name: "Only X2 modifier (no numbers/additives)",
+			hand: func() *domain.PlayerHand {
+				h := domain.NewPlayerHand()
+				h.AddCard(domain.Card{Type: domain.CardTypeModifier, ModifierType: domain.ModifierX2})
+				return h
+			}(),
+			expected: false,
 		},
 		{
 			name: "Only Second Chance (no other actions)",
