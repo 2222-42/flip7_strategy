@@ -97,7 +97,6 @@ func TestRoundRobinDealerRotation(t *testing.T) {
 	}
 	if len(game.CurrentRound.ActivePlayers) != 3 {
 		t.Errorf("Round 1: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
-		return
 	}
 	if game.CurrentRound.ActivePlayers[0].ID != p1.ID {
 		t.Errorf("Round 1: Expected Start Player P1, got %s", game.CurrentRound.ActivePlayers[0].Name)
@@ -111,7 +110,6 @@ func TestRoundRobinDealerRotation(t *testing.T) {
 	}
 	if len(game.CurrentRound.ActivePlayers) != 3 {
 		t.Errorf("Round 2: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
-		return
 	}
 	if game.CurrentRound.ActivePlayers[0].ID != p2.ID {
 		t.Errorf("Round 2: Expected Start Player P2, got %s", game.CurrentRound.ActivePlayers[0].Name)
@@ -131,7 +129,6 @@ func TestRoundRobinDealerRotation(t *testing.T) {
 	}
 	if len(game.CurrentRound.ActivePlayers) != 3 {
 		t.Errorf("Round 3: Expected 3 active players, got %d", len(game.CurrentRound.ActivePlayers))
-		return
 	}
 	if game.CurrentRound.ActivePlayers[0].ID != p3.ID {
 		t.Errorf("Round 3: Expected Start Player P3, got %s", game.CurrentRound.ActivePlayers[0].Name)
