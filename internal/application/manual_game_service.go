@@ -410,7 +410,7 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 		if target.CurrentHand.Status != domain.HandStatusActive {
 			break
 		}
-		
+
 		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
 		input, _ := s.Reader.ReadString('\n')
 		input = strings.TrimSpace(input)
