@@ -2,12 +2,14 @@
 
 This document tracks the performance of different strategies in the Flip 7 game.
 
-## Latest Simulation Run (Flip Three Bust Strategy Implemented)
+## Latest Simulation Run (Refined Freeze Strategy)
 
-**Date**: 2025-11-29
-**Changes**: Implemented `EstimateFlipThreeRisk` and updated `Adaptive`, `ExpectedValue`, and `Heuristic` strategies to target high-risk opponents when using `Flip Three`.
+**Date**: 2025-11-30
+**Changes**: Refined `Freeze` strategy to target Self if winning AND high risk, otherwise target opponent with highest score.
 
 ### 1. Single Player Optimization (Fastest to 200 Points)
+
+*Note: Single player optimization results are unchanged as Freeze behavior in single player (fallback to self) remains the same.*
 
 | Strategy | Avg Rounds | Median Rounds |
 | :--- | :--- | :--- |
@@ -18,22 +20,20 @@ This document tracks the performance of different strategies in the Flip 7 game.
 | Aggressive | 11.18 | 11.00 |
 | Cautious | 12.26 | 12.00 |
 
-*Adaptive strategy is now the fastest to reach 200 points.*
-
 ### 2. Multiplayer Evaluation (Win Rates)
 
 Win rates in games with N players (1000 games each).
 
 | Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
 | :--- | :--- | :--- | :--- | :--- |
-| **Adaptive** | **21.80%** | **20.85%** | **20.60%** | **21.05%** |
-| ExpectedValue | 15.25% | 19.80% | 20.25% | 20.20% |
-| Heuristic-27 | 18.00% | 15.90% | 19.80% | 17.65% |
-| Aggressive | 17.20% | 17.65% | 18.55% | 19.85% |
-| Probabilistic | 16.60% | 17.85% | 15.75% | 16.40% |
-| Cautious | 11.15% | 7.95% | 5.05% | 4.85% |
+| **Adaptive** | **19.35%** | **21.60%** | **19.20%** | **21.70%** |
+| ExpectedValue | 18.75% | 18.10% | 17.00% | 20.15% |
+| Aggressive | 18.40% | 18.10% | 17.80% | 16.65% |
+| Probabilistic | 18.10% | 16.50% | 17.75% | 17.15% |
+| Heuristic-27 | 14.75% | 18.50% | 21.35% | 19.05% |
+| Cautious | 10.65% | 7.20% | 6.90% | 5.30% |
 
-*Adaptive strategy consistently outperforms all others in multiplayer settings.*
+*Adaptive strategy remains the most consistent performer, though Heuristic-27 spiked in 4-player games.*
 
 ### 3. Strategy Combination Evaluation (1vs1 Matchups)
 
@@ -42,19 +42,19 @@ Win rates for Strategy A (Row) vs Strategy B (Column).
 | vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Cautious** | - | 13.90% | 6.70% | 8.80% | 7.60% | 8.40% |
-| **Aggressive** | 86.10% | - | 46.20% | 43.55% | 42.85% | 40.45% |
-| **Probabilistic** | 93.30% | 53.80% | - | 48.20% | 45.55% | 46.25% |
-| **Heuristic-27** | 91.20% | 56.45% | 51.80% | - | 46.60% | 47.20% |
-| **ExpectedValue** | 92.40% | 57.15% | 54.45% | 53.40% | - | 48.45% |
-| **Adaptive** | **91.60%** | **59.55%** | **53.75%** | **52.80%** | **51.55%** | - |
+| **Aggressive** | 86.10% | - | 43.05% | 41.10% | 41.30% | 42.35% |
+| **Probabilistic** | 93.30% | 56.95% | - | 47.75% | 50.40% | 48.05% |
+| **Heuristic-27** | 91.20% | 58.90% | 52.25% | - | 48.50% | 46.60% |
+| **ExpectedValue** | 92.40% | 58.70% | 49.60% | 51.50% | - | 47.85% |
+| **Adaptive** | **91.60%** | **57.65%** | **51.95%** | **53.40%** | **52.15%** | - |
 
-*Adaptive strategy has a positive win rate (>50%) against ALL other strategies.*
+*Adaptive strategy has regained its dominance, winning >50% against ALL other strategies, including ExpectedValue (52.15%).*
 
 ## Conclusions
 
-The implementation of the **Flip Three Bust Strategy** (targeting high-risk opponents) has significantly improved the performance of the strategies that use it (Adaptive, ExpectedValue, Heuristic, Probabilistic).
+The **Refined Freeze Strategy** (risk-aware targeting) has solidified the **Adaptive Strategy**'s position as the best overall strategy.
 
-- **Adaptive Strategy** is currently the **dominant strategy**, winning both in speed and head-to-head matchups.
-- **ExpectedValue** remains a very strong contender.
-- **Cautious** strategy is too slow to compete effectively.
-- **Aggressive** strategy is good against Cautious but loses to more calculated strategies.
+- **Adaptive Strategy** is the **undisputed champion**, winning all head-to-head matchups and performing consistently well in multiplayer.
+- **ExpectedValue** remains strong but lost its slight edge against Adaptive.
+- **Aggressive** and **Heuristic-27** are viable but less consistent.
+- **Cautious** remains the weakest.

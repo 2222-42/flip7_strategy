@@ -88,10 +88,10 @@ func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
 	candidates := []*domain.Player{self, p2, p3}
 	deck := domain.NewDeck()
 
-	// Test Freeze -> Self
+	// Test Freeze -> Leader (p2)
 	target := s.ChooseTarget(domain.ActionFreeze, candidates, self)
-	if target.ID != self.ID {
-		t.Errorf("Expected Freeze target to be Self, got %v", target.ID)
+	if target.ID != p2.ID {
+		t.Errorf("Expected Freeze target to be Leader (p2), got %v", target.ID)
 	}
 
 	// Test FlipThree -> Leader (p2)
