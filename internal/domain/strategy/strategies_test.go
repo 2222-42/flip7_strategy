@@ -104,11 +104,18 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 		description    string
 	}{
 		{
-			name:           "Freeze targets self",
+			name:           "Freeze targets leader opponent",
 			action:         domain.ActionFreeze,
 			candidates:     []*domain.Player{self, opponent1, opponent2},
+			expectedTarget: opponent2,
+			description:    "Freeze should target opponent with highest score (120)",
+		},
+		{
+			name:           "Freeze targets self if no opponents",
+			action:         domain.ActionFreeze,
+			candidates:     []*domain.Player{self},
 			expectedTarget: self,
-			description:    "Freeze should always target self",
+			description:    "Freeze should fallback to self if no opponents",
 		},
 		{
 			name:           "FlipThree targets leader opponent",

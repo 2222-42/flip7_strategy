@@ -39,11 +39,22 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 	// GiveSecondChance -> Player with lowest score (keep game balanced)
 
 	if action == domain.ActionFreeze {
+		// Freeze -> Opponent with highest score
+		var bestTarget *domain.Player
+		maxScore := -1
+
 		for _, p := range candidates {
-			if p.ID == self.ID {
-				return p
+			if p.ID != self.ID {
+				if p.TotalScore > maxScore {
+					maxScore = p.TotalScore
+					bestTarget = p
+				}
 			}
 		}
+		if bestTarget != nil {
+			return bestTarget
+		}
+		return self
 	}
 
 	if action == domain.ActionGiveSecondChance {
@@ -118,11 +129,22 @@ func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates [
 	// GiveSecondChance -> Random player
 
 	if action == domain.ActionFreeze {
+		// Freeze -> Opponent with highest score
+		var bestTarget *domain.Player
+		maxScore := -1
+
 		for _, p := range candidates {
-			if p.ID == self.ID {
-				return p
+			if p.ID != self.ID {
+				if p.TotalScore > maxScore {
+					maxScore = p.TotalScore
+					bestTarget = p
+				}
 			}
 		}
+		if bestTarget != nil {
+			return bestTarget
+		}
+		return self
 	}
 
 	if action == domain.ActionGiveSecondChance {
@@ -158,11 +180,22 @@ func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates 
 	// GiveSecondChance -> Weakest opponent (least threat).
 
 	if action == domain.ActionFreeze {
+		// Freeze -> Opponent with highest score
+		var bestTarget *domain.Player
+		maxScore := -1
+
 		for _, p := range candidates {
-			if p.ID == self.ID {
-				return p
+			if p.ID != self.ID {
+				if p.TotalScore > maxScore {
+					maxScore = p.TotalScore
+					bestTarget = p
+				}
 			}
 		}
+		if bestTarget != nil {
+			return bestTarget
+		}
+		return self
 	}
 
 	if action == domain.ActionFlipThree {
