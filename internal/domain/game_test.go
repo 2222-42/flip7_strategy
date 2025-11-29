@@ -104,9 +104,6 @@ func TestRoundRobinDealerRotation(t *testing.T) {
 	}
 
 	game.DealerIndex = (game.DealerIndex + 1) % len(game.Players)
-	if game.DealerIndex >= len(game.Players) {
-		t.Fatalf("Round 2: DealerIndex %d is out of bounds for %d players", game.DealerIndex, len(game.Players))
-	}
 
 	game.CurrentRound = domain.NewRound(game.Players, game.Players[game.DealerIndex], domain.NewDeck())
 	if game.CurrentRound.Dealer.ID != p2.ID {
@@ -127,9 +124,6 @@ func TestRoundRobinDealerRotation(t *testing.T) {
 	}
 
 	game.DealerIndex = (game.DealerIndex + 1) % len(game.Players)
-	if game.DealerIndex >= len(game.Players) {
-		t.Fatalf("Round 3: DealerIndex %d is out of bounds for %d players", game.DealerIndex, len(game.Players))
-	}
 
 	game.CurrentRound = domain.NewRound(game.Players, game.Players[game.DealerIndex], domain.NewDeck())
 	if game.CurrentRound.Dealer.ID != p3.ID {
