@@ -2,6 +2,8 @@ package domain
 
 import (
 	"errors"
+	"math/rand"
+	"time"
 )
 
 // CardType represents the category of a card.
@@ -27,6 +29,11 @@ const (
 	ModifierPlus10 ModifierType = "plus_10"
 	ModifierX2     ModifierType = "multiply_2"
 )
+
+// IsAdditive returns true if the modifier type adds points (rather than multiplying).
+func (m ModifierType) IsAdditive() bool {
+	return m == ModifierPlus2 || m == ModifierPlus4 || m == ModifierPlus6 || m == ModifierPlus8 || m == ModifierPlus10
+}
 
 // ActionType represents the type of action card.
 type ActionType string
@@ -104,7 +111,8 @@ func NewDeck() *Deck {
 
 // Shuffle randomizes the deck order.
 func (d *Deck) Shuffle() {
-	Shuffle(len(d.Cards), func(i, j int) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(d.Cards), func(i, j int) {
 		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	})
 }

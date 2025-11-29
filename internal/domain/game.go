@@ -63,6 +63,12 @@ func NewRound(players []*Player, dealer *Player, deck *Deck) *Round {
 	}
 }
 
+// End marks the round as ended with a reason.
+func (r *Round) End(reason RoundEndReason) {
+	r.IsEnded = true
+	r.EndReason = reason
+}
+
 // Game represents the entire game session.
 type Game struct {
 	ID           uuid.UUID `json:"id"`
@@ -104,4 +110,14 @@ func (g *Game) DetermineWinners() []*Player {
 	}
 
 	return candidates
+}
+
+// RemoveActivePlayer removes a player from the active players list.
+func (r *Round) RemoveActivePlayer(p *Player) {
+	for i, ap := range r.ActivePlayers {
+		if ap.ID == p.ID {
+			r.ActivePlayers = append(r.ActivePlayers[:i], r.ActivePlayers[i+1:]...)
+			return
+		}
+	}
 }
