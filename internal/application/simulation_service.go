@@ -170,7 +170,7 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 		strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.50)),
 		strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65)),
 		strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70)),
-		strategy.NewAdaptiveStrategy(),
+		strategy.NewOptimizedAdaptiveStrategy(),
 	}
 
 	for playerCount := 1; playerCount <= 5; playerCount++ {
@@ -224,7 +224,7 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		{"Probabilistic", strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.50))},
 		{"Heuristic-27", strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65))},
 		{"ExpectedValue", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70))},
-		{"Adaptive", strategy.NewAdaptiveStrategy()},
+		{"Adaptive", strategy.NewOptimizedAdaptiveStrategy()},
 	}
 
 	for i := 0; i < len(strategies); i++ {
@@ -357,4 +357,61 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 		aggrStrategies = append(aggrStrategies, StrategyConfig{Name: name, Strat: strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
 	}
 	runBatch("Aggressive", aggrStrategies)
+}
+
+func (s *SimulationService) RunAdaptiveOptimizationSimulation(n int) {
+	fmt.Printf("Running Adaptive Strategy Optimization (%d games)...\n", n)
+
+	strategies := []struct {
+		Name  string
+		Strat domain.Strategy
+	}{
+		{"Adaptive-Standard", strategy.NewAdaptiveStrategy()},
+		{"Adaptive-Optimized", strategy.NewOptimizedAdaptiveStrategy()},
+		{"ExpectedValue-Opt", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70))},
+		{"Aggressive-Opt", strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.90))},
+	}
+
+	wins := make(map[string]float64)
+
+	for i := 0; i < n; i++ {
+		var players []*domain.Player
+		for _, s := range strategies {
+			players = append(players, domain.NewPlayer(s.Name, s.Strat))
+		}
+		// Add some standard opponents to fill the table
+		players = append(players, domain.NewPlayer("Standard-Cautious", &strategy.CautiousStrategy{}))
+		players = append(players, domain.NewPlayer("Standard-Probabilistic", &strategy.ProbabilisticStrategy{}))
+
+		game := domain.NewGame(players)
+		svc := NewGameService(game)
+		svc.Silent = true
+		svc.RunGame()
+
+		if len(game.Winners) > 0 {
+			points := 1.0 / float64(len(game.Winners))
+			for _, winner := range game.Winners {
+				wins[winner.Name] += points
+			}
+		}
+	}
+
+	fmt.Println("\n--- Adaptive Optimization Results ---")
+	// Sort by wins
+	type Result struct {
+		Name string
+		Wins float64
+	}
+	var results []Result
+	for name, count := range wins {
+		results = append(results, Result{Name: name, Wins: count})
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Wins > results[j].Wins
+	})
+
+	for _, res := range results {
+		percentage := res.Wins / float64(n) * 100
+		fmt.Printf("%-20s: %.2f wins (%.2f%%)\n", res.Name, res.Wins, percentage)
+	}
 }

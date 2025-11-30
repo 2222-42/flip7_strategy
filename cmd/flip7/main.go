@@ -24,9 +24,10 @@ func main() {
 	fmt.Println("7. Strategy Combination Evaluation (1vs1)")
 	fmt.Println("8. Manual Mode (Real Game Helper)")
 	fmt.Println("9. Target Selection Simulation (Risk Thresholds)")
+	fmt.Println("10. Adaptive Strategy Optimization")
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter choice (1-8): ")
+	fmt.Print("Enter choice (1-10): ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -49,6 +50,8 @@ func main() {
 		runManualMode(reader)
 	case "9":
 		runTargetSelectionSimulation()
+	case "10":
+		runAdaptiveOptimizationSimulation()
 	default:
 		fmt.Println("Invalid choice. Defaulting to Automatic.")
 		runAutomatic()
@@ -117,6 +120,12 @@ func runTargetSelectionSimulation() {
 	fmt.Println("\n--- Target Selection Simulation ---")
 	sim := application.NewSimulationService()
 	sim.RunTargetSelectionSimulation(1000)
+}
+
+func runAdaptiveOptimizationSimulation() {
+	fmt.Println("\n--- Adaptive Strategy Optimization ---")
+	svc := application.NewSimulationService()
+	svc.RunAdaptiveOptimizationSimulation(1000)
 }
 
 func runManualMode(reader *bufio.Reader) {

@@ -20,8 +20,25 @@ func NewAdaptiveStrategy() *AdaptiveStrategy {
 	}
 }
 
+func NewOptimizedAdaptiveStrategy() *AdaptiveStrategy {
+	return &AdaptiveStrategy{
+		Aggressive:    NewAggressiveStrategyWithSelector(NewRiskBasedTargetSelector(0.90)),
+		ExpectedValue: NewExpectedValueStrategyWithSelector(NewRiskBasedTargetSelector(0.70)),
+	}
+}
+
 func (s *AdaptiveStrategy) Name() string {
 	return "Adaptive"
+}
+
+func (s *AdaptiveStrategy) SetDeck(deck *domain.Deck) {
+	s.CommonTargetChooser.SetDeck(deck)
+	if ds, ok := interface{}(s.Aggressive).(interface{ SetDeck(*domain.Deck) }); ok {
+		ds.SetDeck(deck)
+	}
+	if ds, ok := interface{}(s.ExpectedValue).(interface{ SetDeck(*domain.Deck) }); ok {
+		ds.SetDeck(deck)
+	}
 }
 
 func (s *AdaptiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
@@ -41,4 +58,23 @@ func (s *AdaptiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, pl
 
 	// Default to Expected Value mode
 	return s.ExpectedValue.Decide(deck, hand, playerScore, otherPlayers)
+}
+
+func (s *AdaptiveStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+	// Check if any opponent has reached the winning threshold
+	opponentThreat := false
+	for _, p := range candidates {
+		if p.ID != self.ID && p.TotalScore >= domain.WinningThreshold {
+			opponentThreat = true
+			break
+		}
+	}
+
+	if opponentThreat {
+		// Switch to Aggressive mode targeting
+		return s.Aggressive.ChooseTarget(action, candidates, self)
+	}
+
+	// Default to Expected Value mode targeting
+	return s.ExpectedValue.ChooseTarget(action, candidates, self)
 }
