@@ -24,9 +24,10 @@ func main() {
 	fmt.Println("6. Multiplayer Evaluation (1-5 Players)")
 	fmt.Println("7. Strategy Combination Evaluation (1vs1)")
 	fmt.Println("8. Manual Mode (Real Game Helper)")
+	fmt.Println("9. Target Selection Simulation (Risk Thresholds)")
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter choice (1-8): ")
+	fmt.Print("Enter choice (1-9): ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
@@ -47,6 +48,8 @@ func main() {
 		runStrategyCombinationEvaluation()
 	case "8":
 		runManualMode(reader)
+	case "9":
+		runTargetSelectionSimulation()
 	default:
 		fmt.Println("Invalid choice. Defaulting to Automatic.")
 		runAutomatic()
@@ -109,6 +112,12 @@ func runStrategyCombinationEvaluation() {
 	fmt.Println("\n--- Strategy Combination Evaluation ---")
 	sim := application.NewSimulationService()
 	sim.RunStrategyCombinationEvaluation(1000)
+}
+
+func runTargetSelectionSimulation() {
+	fmt.Println("\n--- Target Selection Simulation ---")
+	sim := application.NewSimulationService()
+	sim.RunTargetSelectionSimulation(1000)
 }
 
 func runManualMode(reader *bufio.Reader) {
