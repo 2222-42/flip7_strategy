@@ -197,12 +197,7 @@ func (s *RandomTargetSelector) ChooseTarget(action domain.ActionType, candidates
 		return candidates[rand.Intn(len(candidates))]
 	}
 
-	var opponents []*domain.Player
-	for _, p := range candidates {
-		if p.ID != self.ID {
-			opponents = append(opponents, p)
-		}
-	}
+	opponents := filterOpponents(candidates, self)
 	if len(opponents) > 0 {
 		return opponents[rand.Intn(len(opponents))]
 	}
