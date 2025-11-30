@@ -178,6 +178,188 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 	}
 }
 
+func TestNewAggressiveStrategyWithSelector(t *testing.T) {
+	// Test that the custom selector is properly initialized
+	customSelector := strategy.NewRiskBasedTargetSelector(0.9)
+	strat := strategy.NewAggressiveStrategyWithSelector(customSelector)
+
+	if strat == nil {
+		t.Fatal("Expected strategy to be initialized")
+	}
+
+	// Create test players
+	self := &domain.Player{
+		ID:         domain.NewPlayer("Self", nil).ID,
+		Name:       "Self",
+		TotalScore: 100,
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	opponent1 := &domain.Player{
+		ID:         domain.NewPlayer("Opponent1", nil).ID,
+		Name:       "Opponent1",
+		TotalScore: 80,
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	opponent2 := &domain.Player{
+		ID:         domain.NewPlayer("Opponent2", nil).ID,
+		Name:       "Opponent2",
+		TotalScore: 50,
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	// Setup opponent2 to have high risk
+	opponent2.CurrentHand.NumberCards[domain.NumberValue(0)] = struct{}{}
+	opponent2.CurrentHand.NumberCards[domain.NumberValue(1)] = struct{}{}
+	opponent2.CurrentHand.NumberCards[domain.NumberValue(2)] = struct{}{}
+
+	candidates := []*domain.Player{self, opponent1, opponent2}
+
+	// Create a deck that guarantees high risk for opponent2
+	cards := []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 0},
+		{Type: domain.CardTypeNumber, Value: 1},
+		{Type: domain.CardTypeNumber, Value: 2},
+	}
+	deck := domain.NewDeckFromCards(cards)
+	strat.SetDeck(deck)
+
+	// Test that ChooseTarget uses the custom selector (should target high-risk opponent)
+	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+
+	// With RiskBasedTargetSelector(0.9), it should target the high-risk opponent2
+	if target.ID != opponent2.ID {
+		t.Errorf("Expected strategy to use custom selector and target high-risk opponent (opponent2), got %s", target.Name)
+	}
+}
+
+func TestNewProbabilisticStrategyWithSelector(t *testing.T) {
+	customSelector := strategy.NewRiskBasedTargetSelector(0.7)
+	strat := strategy.NewProbabilisticStrategyWithSelector(customSelector)
+
+	if strat == nil {
+		t.Fatal("Expected strategy to be initialized")
+	}
+
+	// Test targeting behavior
+	self := domain.NewPlayer("Self", nil)
+	self.CurrentHand = domain.NewPlayerHand()
+	opponent := domain.NewPlayer("Opponent", nil)
+	opponent.TotalScore = 150
+	opponent.CurrentHand = domain.NewPlayerHand()
+
+	candidates := []*domain.Player{self, opponent}
+	deck := domain.NewDeck()
+	strat.SetDeck(deck)
+
+	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+
+	// Should target the opponent (leader)
+	if target.ID != opponent.ID {
+		t.Errorf("Expected strategy to target opponent, got %v", target.ID)
+	}
+}
+
+func TestNewHeuristicStrategyWithSelector(t *testing.T) {
+	threshold := 25
+	customSelector := strategy.NewRiskBasedTargetSelector(0.85)
+	strat := strategy.NewHeuristicStrategyWithSelector(threshold, customSelector)
+
+	if strat == nil {
+		t.Fatal("Expected strategy to be initialized")
+	}
+
+	// Verify threshold is set correctly
+	if strat.Name() != "Heuristic-25" {
+		t.Errorf("Expected strategy name to be 'Heuristic-25', got %s", strat.Name())
+	}
+
+	// Test targeting behavior
+	self := domain.NewPlayer("Self", nil)
+	self.CurrentHand = domain.NewPlayerHand()
+	opponent := domain.NewPlayer("Opponent", nil)
+	opponent.TotalScore = 120
+	opponent.CurrentHand = domain.NewPlayerHand()
+
+	candidates := []*domain.Player{self, opponent}
+	deck := domain.NewDeck()
+	strat.SetDeck(deck)
+
+	target := strat.ChooseTarget(domain.ActionFreeze, candidates, self)
+
+	// Should target the opponent (leader)
+	if target.ID != opponent.ID {
+		t.Errorf("Expected strategy to target opponent, got %v", target.ID)
+	}
+}
+
+func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
+	customSelector := strategy.NewRiskBasedTargetSelector(0.75)
+	strat := strategy.NewExpectedValueStrategyWithSelector(customSelector)
+
+	if strat == nil {
+		t.Fatal("Expected strategy to be initialized")
+	}
+
+	// Test targeting behavior
+	self := domain.NewPlayer("Self", nil)
+	self.TotalScore = 100
+	self.CurrentHand = domain.NewPlayerHand()
+	opponent := domain.NewPlayer("Opponent", nil)
+	opponent.TotalScore = 150
+	opponent.CurrentHand = domain.NewPlayerHand()
+
+	candidates := []*domain.Player{self, opponent}
+	deck := domain.NewDeck()
+	strat.SetDeck(deck)
+
+	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+
+	// Should target the opponent (leader)
+	if target.ID != opponent.ID {
+		t.Errorf("Expected strategy to target opponent, got %v", target.ID)
+	}
+}
+
+func TestNewOptimizedAdaptiveStrategy(t *testing.T) {
+	strat := strategy.NewOptimizedAdaptiveStrategy()
+
+	if strat == nil {
+		t.Fatal("Expected strategy to be initialized")
+	}
+
+	// Verify that the strategy name is correct
+	if strat.Name() != "Adaptive" {
+		t.Errorf("Expected strategy name to be 'Adaptive', got %s", strat.Name())
+	}
+
+	// Test targeting behavior
+	self := domain.NewPlayer("Self", nil)
+	self.TotalScore = 100
+	self.CurrentHand = domain.NewPlayerHand()
+	opponent := domain.NewPlayer("Opponent", nil)
+	opponent.TotalScore = 150
+	opponent.CurrentHand = domain.NewPlayerHand()
+
+	candidates := []*domain.Player{self, opponent}
+	deck := domain.NewDeck()
+	strat.SetDeck(deck)
+
+	target := strat.ChooseTarget(domain.ActionFreeze, candidates, self)
+
+	// Should target the opponent (leader)
+	if target.ID != opponent.ID {
+		t.Errorf("Expected strategy to target opponent, got %v", target.ID)
+	}
+}
+
 func TestChooseTarget_FlipThree_HighRisk(t *testing.T) {
 	s := strategy.CommonTargetChooser{}
 	self := domain.NewPlayer("Self", nil)
