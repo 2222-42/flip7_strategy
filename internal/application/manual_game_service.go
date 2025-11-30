@@ -21,6 +21,7 @@ const FlipThreeCardCount = 3
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`
 	UserControlledIDs []string     `json:"user_controlled_ids"` // IDs of players with nil strategy
+	GameID            string       `json:"game_id"`              // GameID for logging continuity
 }
 
 // ManualGameService handles the manual mode where the user inputs game events.
@@ -612,6 +613,7 @@ func (s *ManualGameService) SaveState() (string, error) {
 	wrapper := gameStateWrapper{
 		Game:              s.Game,
 		UserControlledIDs: userControlledIDs,
+		GameID:            s.GameID,
 	}
 
 	data, err := json.Marshal(wrapper)
@@ -648,6 +650,7 @@ func (s *ManualGameService) LoadState(encoded string) error {
 
 	s.RelinkPointers(wrapper.Game, wrapper.UserControlledIDs)
 	s.Game = wrapper.Game
+	s.GameID = wrapper.GameID // Restore GameID for logging continuity
 	return nil
 }
 
