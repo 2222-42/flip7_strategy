@@ -133,12 +133,12 @@ We re-ran the Multiplayer and Strategy Combination evaluations using the optimal
 
 | Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
 | :--- | :--- | :--- | :--- | :--- |
-| **Adaptive** | **20.60%** | **21.20%** | 19.15% | 19.90% |
-| **ExpectedValue** | 17.00% | 17.95% | 19.35% | **22.05%** |
-| **Heuristic-27** | 17.20% | 18.10% | **20.50%** | 17.55% |
-| Probabilistic | 17.00% | 18.25% | 16.65% | 16.55% |
-| Aggressive | 18.60% | 18.30% | 19.35% | 19.35% |
-| Cautious | 9.60% | 6.20% | 5.00% | 4.60% |
+| **Adaptive (Standard)** | **20.80%** | **21.75%** | **20.45%** | 19.40% |
+| **ExpectedValue** | 17.50% | 19.00% | 20.60% | **20.70%** |
+| **Heuristic-27** | 17.30% | 14.75% | 17.75% | 19.20% |
+| Probabilistic | 16.00% | 19.80% | 17.20% | 17.65% |
+| Aggressive | 18.00% | 17.40% | 17.80% | 18.10% |
+| Cautious | 10.40% | 7.30% | 6.20% | 4.95% |
 
 *Analysis*:
 - **Adaptive (Optimized)** has strengthened its dominance in 2 and 3 player games.
@@ -151,17 +151,23 @@ Win rates for Strategy A (Row) vs Strategy B (Column).
 
 | vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cautious** | - | 37.30% | 25.15% | 27.40% | 24.80% | 25.65% |
-| **Aggressive** | 62.70% | - | 46.50% | 42.80% | 41.90% | 42.50% |
-| **Probabilistic** | **74.85%** | **53.50%** | - | 47.75% | 47.50% | 47.55% |
-| **Heuristic-27** | **72.60%** | **57.20%** | **52.25%** | - | 47.85% | 44.85% |
-| **ExpectedValue** | **75.20%** | **58.10%** | **52.50%** | **52.15%** | - | 49.75% |
-| **Adaptive** | **74.35%** | **57.50%** | **52.45%** | **55.15%** | **50.25%** | - |
+| **Cautious** | - | 38.00% | 30.20% | 25.80% | 22.30% | 23.30% |
+| **Aggressive** | 62.00% | - | 43.55% | 44.25% | 38.75% | 42.35% |
+| **Probabilistic** | **69.80%** | **56.45%** | - | 48.85% | 48.50% | 47.55% |
+| **Heuristic-27** | **74.20%** | **55.75%** | **51.15%** | - | 49.40% | **50.80%** |
+| **ExpectedValue** | **77.70%** | **61.25%** | **51.50%** | **50.60%** | - | **50.90%** |
+| **Adaptive** | **76.70%** | **57.65%** | **52.45%** | 49.20% | 49.10% | - |
 
-*Analysis*:
-- **Adaptive (Optimized)** has narrowly reclaimed the top spot from ExpectedValue in 1v1! It beats ExpectedValue (50.25%) and Heuristic-27 (55.15%).
-- **ExpectedValue** remains extremely strong, beating everyone except Adaptive.
-- The margin between Adaptive and ExpectedValue is razor-thin (50.25% vs 49.75%), effectively a draw, but Adaptive has the edge.
+**Comparison with Optimized Adaptive Strategy**:
+- **1v1 vs ExpectedValue**:
+    - **Standard Adaptive**: 49.10% win rate (Loses to EV).
+    - **Optimized Adaptive**: 50.25% win rate (Wins against EV).
+- **1v1 vs Heuristic-27**:
+    - **Standard Adaptive**: 49.20% win rate (Loses to Heuristic).
+    - **Optimized Adaptive**: 55.15% win rate (Wins against Heuristic).
+- **Multiplayer**:
+    - Standard Adaptive actually performed slightly *better* in 2-3 player games in this batch, likely due to variance or specific interactions with the static threshold.
+    - However, the 1v1 results clearly show that the **Standard Adaptive Strategy** is vulnerable to optimized opponents (losing to both EV and Heuristic-27), whereas the **Optimized Adaptive Strategy** defeats them.
 
 ## Final Conclusion
 

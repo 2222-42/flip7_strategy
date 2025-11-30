@@ -328,38 +328,6 @@ func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
 	}
 }
 
-func TestNewOptimizedAdaptiveStrategy(t *testing.T) {
-	strat := strategy.NewOptimizedAdaptiveStrategy()
-
-	if strat == nil {
-		t.Fatal("Expected strategy to be initialized")
-	}
-
-	// Verify that the strategy name is correct
-	if strat.Name() != "Adaptive" {
-		t.Errorf("Expected strategy name to be 'Adaptive', got %s", strat.Name())
-	}
-
-	// Test targeting behavior
-	self := domain.NewPlayer("Self", nil)
-	self.TotalScore = 100
-	self.CurrentHand = domain.NewPlayerHand()
-	opponent := domain.NewPlayer("Opponent", nil)
-	opponent.TotalScore = 150
-	opponent.CurrentHand = domain.NewPlayerHand()
-
-	candidates := []*domain.Player{self, opponent}
-	deck := domain.NewDeck()
-	strat.SetDeck(deck)
-
-	target := strat.ChooseTarget(domain.ActionFreeze, candidates, self)
-
-	// Should target the opponent (leader)
-	if target.ID != opponent.ID {
-		t.Errorf("Expected strategy to target opponent, got %v", target.ID)
-	}
-}
-
 func TestChooseTarget_FlipThree_HighRisk(t *testing.T) {
 	s := strategy.CommonTargetChooser{}
 	self := domain.NewPlayer("Self", nil)
