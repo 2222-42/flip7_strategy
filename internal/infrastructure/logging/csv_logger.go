@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-// CsvLogger implements GameLogger using a CSV file.
-type CsvLogger struct {
+// CSVLogger implements GameLogger using a CSV file.
+type CSVLogger struct {
 	file   *os.File
 	writer *csv.Writer
 	mu     sync.Mutex
 }
 
-// NewCsvLogger creates a new CsvLogger writing to the specified path.
-func NewCsvLogger(path string) (*CsvLogger, error) {
+// NewCSVLogger creates a new CSVLogger writing to the specified path.
+func NewCSVLogger(path string) (*CSVLogger, error) {
 	// Open file in append mode, create if not exists
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -31,20 +31,23 @@ func NewCsvLogger(path string) (*CsvLogger, error) {
 	if err == nil && stat.Size() == 0 {
 		header := []string{"Timestamp", "GameID", "RoundID", "PlayerID", "EventType", "Details"}
 		if err := writer.Write(header); err != nil {
-			file.Close()
+			closeErr := file.Close()
+			if closeErr != nil {
+				return nil, fmt.Errorf("failed to write header: %v; additionally, failed to close file: %w", err, closeErr)
+			}
 			return nil, fmt.Errorf("failed to write header: %w", err)
 		}
 		writer.Flush()
 	}
 
-	return &CsvLogger{
+	return &CSVLogger{
 		file:   file,
 		writer: writer,
 	}, nil
 }
 
 // Log records a game event to the CSV file.
-func (l *CsvLogger) Log(gameID, roundID, playerID, eventType string, details map[string]interface{}) {
+func (l *CSVLogger) Log(gameID, roundID, playerID, eventType string, details map[string]interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -70,9 +73,11 @@ func (l *CsvLogger) Log(gameID, roundID, playerID, eventType string, details map
 }
 
 // Close closes the underlying file.
-func (l *CsvLogger) Close() {
+func (l *CSVLogger) Close() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.writer.Flush()
-	l.file.Close()
+	if err := l.file.Close(); err != nil {
+		fmt.Printf("Error closing log file: %v\n", err)
+	}
 }

@@ -128,6 +128,11 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		if newService.Game.Players[1].Strategy == nil {
 			t.Errorf("AI player should have non-nil strategy")
 		}
+
+		// Verify GameID is restored for logging continuity
+		if newService.GameID != service.GameID {
+			t.Errorf("GameID should be restored: got %s, want %s", newService.GameID, service.GameID)
+		}
 	})
 
 	t.Run("Invalid base64 code", func(t *testing.T) {

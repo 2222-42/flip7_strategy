@@ -112,7 +112,7 @@ func runStrategyCombinationEvaluation() {
 }
 
 func runManualMode(reader *bufio.Reader) {
-	logger, err := logging.NewCsvLogger("game_logs.csv")
+	logger, err := logging.NewCSVLogger("game_logs.csv")
 	if err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
 	} else {

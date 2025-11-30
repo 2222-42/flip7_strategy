@@ -51,10 +51,17 @@ func main() {
 			continue
 		}
 
+		// Validate row has at least 5 fields before accessing
+		if len(row) < 5 {
+			fmt.Printf("Skipping malformed row (expected at least 5 fields, got %d): %v\n", len(row), row)
+			continue
+		}
+
 		var details map[string]interface{}
 		if len(row) > 5 {
 			if err := json.Unmarshal([]byte(row[5]), &details); err != nil {
-				fmt.Printf("Error unmarshalling details: %v\n", err)
+				fmt.Printf("Error unmarshalling details for row: %v\n\tJSON: %s\n\tError: %v\n", row, row[5], err)
+				details = make(map[string]interface{})
 			}
 		}
 
