@@ -69,7 +69,6 @@ Select Mode:
 - **Optimize Heuristic Strategy**: Finds the optimal stopping threshold for the Heuristic strategy.
 - **Single Player Optimization**: Calculates average and median rounds to reach 200 points for each strategy.
 - **Multiplayer Evaluation**: Simulates games with 1 to 5 players to evaluate strategy performance in different group sizes.
-- **Multiplayer Evaluation**: Simulates games with 1 to 5 players to evaluate strategy performance in different group sizes.
 - **Strategy Combination Evaluation**: Runs 1vs1 matchups between all unique pairs of strategies.
 - **Manual Mode**: A helper for playing a physical game.
     - **Logging**: Game events are automatically logged to `game_logs.csv` for analysis.
