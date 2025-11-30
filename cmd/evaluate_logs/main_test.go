@@ -131,14 +131,14 @@ func TestMain_FileNotFound(t *testing.T) {
 	os.Args = []string{"evaluate_logs", "/nonexistent/file.csv"}
 
 	var buf bytes.Buffer
-	oldStdout := os.Stdout
+	oldStderr := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
 
 	main()
 
 	w.Close()
-	os.Stdout = oldStdout
+	os.Stderr = oldStderr
 	buf.ReadFrom(r)
 
 	output := buf.String()
@@ -225,26 +225,35 @@ incomplete,row
 	// Set args with test file
 	os.Args = []string{"evaluate_logs", csvPath}
 
-	var buf bytes.Buffer
+	var bufStderr bytes.Buffer
+	oldStderr := os.Stderr
+	rErr, wErr, _ := os.Pipe()
+	os.Stderr = wErr
+
+	var bufStdout bytes.Buffer
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	rOut, wOut, _ := os.Pipe()
+	os.Stdout = wOut
 
 	main()
 
-	w.Close()
+	wErr.Close()
+	wOut.Close()
+	os.Stderr = oldStderr
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	bufStderr.ReadFrom(rErr)
+	bufStdout.ReadFrom(rOut)
 
-	output := buf.String()
+	stderrOutput := bufStderr.String()
+	stdoutOutput := bufStdout.String()
 
-	// Should show error reading malformed rows
-	if !strings.Contains(output, "Error reading row") {
-		t.Errorf("Expected 'Error reading row' warning, got: %s", output)
+	// Should show error reading malformed rows on stderr
+	if !strings.Contains(stderrOutput, "Error reading row") {
+		t.Errorf("Expected 'Error reading row' warning on stderr, got: %s", stderrOutput)
 	}
-	// Should still process the valid row
-	if !strings.Contains(output, "Total Records: 1") {
-		t.Errorf("Expected 'Total Records: 1' (only valid row), got: %s", output)
+	// Should still process the valid row on stdout
+	if !strings.Contains(stdoutOutput, "Total Records: 1") {
+		t.Errorf("Expected 'Total Records: 1' (only valid row) on stdout, got: %s", stdoutOutput)
 	}
 }
 
@@ -270,26 +279,35 @@ func TestMain_InvalidJSON(t *testing.T) {
 	// Set args with test file
 	os.Args = []string{"evaluate_logs", csvPath}
 
-	var buf bytes.Buffer
+	var bufStderr bytes.Buffer
+	oldStderr := os.Stderr
+	rErr, wErr, _ := os.Pipe()
+	os.Stderr = wErr
+
+	var bufStdout bytes.Buffer
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	rOut, wOut, _ := os.Pipe()
+	os.Stdout = wOut
 
 	main()
 
-	w.Close()
+	wErr.Close()
+	wOut.Close()
+	os.Stderr = oldStderr
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	bufStderr.ReadFrom(rErr)
+	bufStdout.ReadFrom(rOut)
 
-	output := buf.String()
+	stderrOutput := bufStderr.String()
+	stdoutOutput := bufStdout.String()
 
-	// Should show error for invalid JSON
-	if !strings.Contains(output, "Error unmarshalling details") {
-		t.Errorf("Expected JSON unmarshalling error, got: %s", output)
+	// Should show error for invalid JSON on stderr
+	if !strings.Contains(stderrOutput, "Error unmarshalling details") {
+		t.Errorf("Expected JSON unmarshalling error on stderr, got: %s", stderrOutput)
 	}
-	// Should still process both records (with empty details for invalid one)
-	if !strings.Contains(output, "Total Records: 2") {
-		t.Errorf("Expected 'Total Records: 2', got: %s", output)
+	// Should still process both records (with empty details for invalid one) on stdout
+	if !strings.Contains(stdoutOutput, "Total Records: 2") {
+		t.Errorf("Expected 'Total Records: 2' on stdout, got: %s", stdoutOutput)
 	}
 }
 
@@ -311,14 +329,14 @@ func TestMain_EmptyFile(t *testing.T) {
 	os.Args = []string{"evaluate_logs", csvPath}
 
 	var buf bytes.Buffer
-	oldStdout := os.Stdout
+	oldStderr := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
 
 	main()
 
 	w.Close()
-	os.Stdout = oldStdout
+	os.Stderr = oldStderr
 	buf.ReadFrom(r)
 
 	output := buf.String()

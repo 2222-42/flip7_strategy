@@ -67,7 +67,7 @@ func (l *CSVLogger) Log(gameID, roundID, playerID, eventType string, details map
 	}
 
 	if err := l.writer.Write(record); err != nil {
-		fmt.Printf("Error writing log: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error writing log: %v\n", err)
 	}
 	l.writer.Flush()
 }
@@ -78,6 +78,6 @@ func (l *CSVLogger) Close() {
 	defer l.mu.Unlock()
 	l.writer.Flush()
 	if err := l.file.Close(); err != nil {
-		fmt.Printf("Error closing log file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error closing log file: %v\n", err)
 	}
 }
