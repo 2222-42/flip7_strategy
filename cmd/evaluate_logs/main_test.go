@@ -19,7 +19,9 @@ func TestAnalyze_EmptyRecords(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	output := buf.String()
 	if !strings.Contains(output, "Total Records: 0") {
@@ -70,7 +72,9 @@ func TestAnalyze_MultipleRecords(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	output := buf.String()
 
@@ -114,7 +118,9 @@ func TestMain_NoArguments(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	output := buf.String()
 	if !strings.Contains(output, "Usage: evaluate_logs <log_file>") {
@@ -139,7 +145,9 @@ func TestMain_FileNotFound(t *testing.T) {
 
 	w.Close()
 	os.Stderr = oldStderr
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stderr: %v", err)
+	}
 
 	output := buf.String()
 	if !strings.Contains(output, "Failed to open file") {
@@ -180,7 +188,9 @@ func TestMain_ValidCSVFile(t *testing.T) {
 
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	output := buf.String()
 
@@ -241,8 +251,12 @@ incomplete,row
 	wOut.Close()
 	os.Stderr = oldStderr
 	os.Stdout = oldStdout
-	bufStderr.ReadFrom(rErr)
-	bufStdout.ReadFrom(rOut)
+	if _, err := bufStderr.ReadFrom(rErr); err != nil {
+		t.Fatalf("Failed to read captured stderr: %v", err)
+	}
+	if _, err := bufStdout.ReadFrom(rOut); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	stderrOutput := bufStderr.String()
 	stdoutOutput := bufStdout.String()
@@ -295,8 +309,12 @@ func TestMain_InvalidJSON(t *testing.T) {
 	wOut.Close()
 	os.Stderr = oldStderr
 	os.Stdout = oldStdout
-	bufStderr.ReadFrom(rErr)
-	bufStdout.ReadFrom(rOut)
+	if _, err := bufStderr.ReadFrom(rErr); err != nil {
+		t.Fatalf("Failed to read captured stderr: %v", err)
+	}
+	if _, err := bufStdout.ReadFrom(rOut); err != nil {
+		t.Fatalf("Failed to read captured stdout: %v", err)
+	}
 
 	stderrOutput := bufStderr.String()
 	stdoutOutput := bufStdout.String()
@@ -337,7 +355,9 @@ func TestMain_EmptyFile(t *testing.T) {
 
 	w.Close()
 	os.Stderr = oldStderr
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("Failed to read captured stderr: %v", err)
+	}
 
 	output := buf.String()
 
