@@ -120,7 +120,10 @@ func (r *Round) RemoveActivePlayer(p *Player) {
 	for i, ap := range r.ActivePlayers {
 		if ap.ID == p.ID {
 			// If we're removing a player before the current turn index,
-			// decrement the index to account for the shift
+			// decrement the index to account for the shift.
+			// If i == CurrentTurnIndex (removing current player), don't decrement
+			// because the next player slides into the current position.
+			// If i > CurrentTurnIndex, no adjustment needed.
 			if i < r.CurrentTurnIndex {
 				r.CurrentTurnIndex--
 			}
