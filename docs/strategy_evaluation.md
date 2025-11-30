@@ -117,3 +117,56 @@ We ran a comprehensive simulation (1000 games per batch) to find the optimal "Fl
 - **Synergy**: The results suggest a synergy between playing style and targeting style.
     - **Conservative Play + Aggressive Targeting**: Probabilistic (Conservative) + 0.50 (Aggressive Targeting) works well.
     - **Aggressive Play + Conservative Targeting**: Aggressive (Aggressive) + 0.90 (Conservative Targeting) works well.
+
+### 5. Final Evaluation with Optimal Risk Thresholds
+
+We re-ran the Multiplayer and Strategy Combination evaluations using the optimal risk thresholds identified above:
+- **Expected Value**: 0.70
+- **Probabilistic**: 0.50
+- **Heuristic**: 0.65
+- **Aggressive**: 0.90
+
+#### Multiplayer Evaluation (Win Rates)
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adaptive** | **19.95%** | **20.50%** | 19.00% | 19.05% |
+| **ExpectedValue** | 17.00% | 19.55% | 19.45% | **20.10%** |
+| **Heuristic-27** | 15.75% | 17.85% | **20.00%** | 19.45% |
+| Probabilistic | 18.20% | 16.55% | 16.20% | 18.30% |
+| Aggressive | 17.70% | 17.70% | 19.20% | 18.30% |
+| Cautious | 11.40% | 7.85% | 6.15% | 4.80% |
+
+*Analysis*:
+- **Adaptive** remains dominant in 2 and 3 player games.
+- **Heuristic-27** (with risk-based targeting) has surged to become the best strategy in 4-player games.
+- **ExpectedValue** (with risk-based targeting) is the best strategy in 5-player games.
+- The competition is much tighter with optimized targeting.
+
+#### Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 38.30% | 25.35% | 27.35% | 23.05% | 24.70% |
+| **Aggressive** | 61.70% | - | 47.40% | 45.00% | 43.75% | 42.65% |
+| **Probabilistic** | **74.65%** | **52.60%** | - | 48.80% | 46.80% | 47.25% |
+| **Heuristic-27** | **72.65%** | **55.00%** | **51.20%** | - | 48.65% | 46.50% |
+| **ExpectedValue** | **76.95%** | **56.25%** | **53.20%** | **51.35%** | - | **51.55%** |
+| **Adaptive** | **75.30%** | **57.35%** | **52.75%** | **53.50%** | 48.45% | - |
+
+*Analysis*:
+- **ExpectedValue** (optimized) has reclaimed the top spot in head-to-head matchups! It now beats **Adaptive** (51.55%) and all other strategies.
+- **Adaptive** is a close second, beating everyone except ExpectedValue.
+- **Heuristic-27** performs very well, beating Aggressive and Probabilistic.
+- **Aggressive** struggles against optimized opponents in 1v1.
+
+## Final Conclusion
+
+Target selection optimization has significantly shifted the balance of power.
+
+1.  **Expected Value (Risk 0.70)** is the **strongest 1v1 strategy**, defeating the Adaptive strategy. It also excels in large multiplayer games (5 players).
+2.  **Adaptive Strategy** remains extremely competitive, dominating small multiplayer games (2-3 players) and being the second-best 1v1 strategy.
+3.  **Heuristic-27 (Risk 0.65)** is a surprise contender, performing exceptionally well in 4-player games and holding its own in 1v1.
+4.  **Risk-Based Targeting Matters**: Optimizing the "Flip Three" risk threshold provided a tangible edge, allowing ExpectedValue to overcome Adaptive in direct confrontation.

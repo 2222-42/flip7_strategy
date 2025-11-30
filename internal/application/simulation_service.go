@@ -166,10 +166,10 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 	// Strategies pool
 	strats := []domain.Strategy{
 		&strategy.CautiousStrategy{},
-		strategy.NewAggressiveStrategy(),
-		&strategy.ProbabilisticStrategy{},
-		strategy.NewHeuristicStrategy(27),
-		&strategy.ExpectedValueStrategy{},
+		strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.90)),
+		strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.50)),
+		strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65)),
+		strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70)),
 		strategy.NewAdaptiveStrategy(),
 	}
 
@@ -220,10 +220,10 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		Strat domain.Strategy
 	}{
 		{"Cautious", &strategy.CautiousStrategy{}},
-		{"Aggressive", strategy.NewAggressiveStrategy()},
-		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
-		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
-		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
+		{"Aggressive", strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.90))},
+		{"Probabilistic", strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.50))},
+		{"Heuristic-27", strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65))},
+		{"ExpectedValue", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70))},
 		{"Adaptive", strategy.NewAdaptiveStrategy()},
 	}
 
