@@ -31,3 +31,5 @@ go.work.sum
 # .idea/
 # .vscode/
 /main
+game_logs.csv
+manual_input.txt

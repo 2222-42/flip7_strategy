@@ -10,6 +10,7 @@ import (
 	"flip7_strategy/internal/domain"
 	"flip7_strategy/internal/domain/strategy"
 	"flip7_strategy/internal/infrastructure/console"
+	"flip7_strategy/internal/infrastructure/logging"
 )
 
 func main() {
@@ -120,7 +121,14 @@ func runTargetSelectionSimulation() {
 }
 
 func runManualMode(reader *bufio.Reader) {
-	svc := application.NewManualGameService(reader)
+	logger, err := logging.NewCSVLogger("game_logs.csv")
+	if err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+	} else {
+		defer logger.Close()
+	}
+
+	svc := application.NewManualGameService(reader, logger)
 	svc.Run()
 }
 

@@ -31,7 +31,7 @@ func TestGameStateSerialization(t *testing.T) {
 
 	// 2. Create service and use public RelinkPointers via SaveState/LoadState
 	reader := bufio.NewReader(strings.NewReader(""))
-	service := application.NewManualGameService(reader)
+	service := application.NewManualGameService(reader, nil)
 	service.Game = game
 
 	// 3. Save state
@@ -41,7 +41,7 @@ func TestGameStateSerialization(t *testing.T) {
 	}
 
 	// 4. Load state into a new service
-	newService := application.NewManualGameService(reader)
+	newService := application.NewManualGameService(reader, nil)
 	err = newService.LoadState(saveCode)
 	if err != nil {
 		t.Fatalf("LoadState failed: %v", err)
@@ -94,7 +94,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		p1.TotalScore = 100
 
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 		service.Game = game
 
 		// Save
@@ -107,7 +107,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		}
 
 		// Load into new service
-		newService := application.NewManualGameService(reader)
+		newService := application.NewManualGameService(reader, nil)
 		err = newService.LoadState(code)
 		if err != nil {
 			t.Fatalf("LoadState failed: %v", err)
@@ -128,11 +128,16 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		if newService.Game.Players[1].Strategy == nil {
 			t.Errorf("AI player should have non-nil strategy")
 		}
+
+		// Verify GameID is restored for logging continuity
+		if newService.GameID != service.GameID {
+			t.Errorf("GameID should be restored: got %s, want %s", newService.GameID, service.GameID)
+		}
 	})
 
 	t.Run("Invalid base64 code", func(t *testing.T) {
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 
 		err := service.LoadState("invalid!@#$%")
 		if err == nil {
@@ -142,7 +147,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 
 	t.Run("Invalid JSON in code", func(t *testing.T) {
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 
 		invalidJSON := base64.StdEncoding.EncodeToString([]byte("{invalid json}"))
 		err := service.LoadState(invalidJSON)
@@ -160,7 +165,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		game.IsCompleted = true
 
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 		service.Game = game
 
 		// Save
@@ -170,7 +175,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		}
 
 		// Try to load
-		newService := application.NewManualGameService(reader)
+		newService := application.NewManualGameService(reader, nil)
 		err = newService.LoadState(code)
 		if err == nil {
 			t.Errorf("LoadState should reject completed game")
@@ -192,7 +197,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		game.CurrentRound.IsEnded = true
 
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 		service.Game = game
 
 		// Save
@@ -202,7 +207,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		}
 
 		// Try to load
-		newService := application.NewManualGameService(reader)
+		newService := application.NewManualGameService(reader, nil)
 		err = newService.LoadState(code)
 		if err == nil {
 			t.Errorf("LoadState should reject game with ended round")
@@ -224,7 +229,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 		game.Winners = []*domain.Player{p1}
 
 		reader := bufio.NewReader(strings.NewReader(""))
-		service := application.NewManualGameService(reader)
+		service := application.NewManualGameService(reader, nil)
 		service.Game = game
 
 		// Save and load
@@ -233,7 +238,7 @@ func TestSaveStateAndLoadState(t *testing.T) {
 			t.Fatalf("SaveState failed: %v", err)
 		}
 
-		newService := application.NewManualGameService(reader)
+		newService := application.NewManualGameService(reader, nil)
 		err = newService.LoadState(code)
 		if err != nil {
 			t.Fatalf("LoadState failed: %v", err)
