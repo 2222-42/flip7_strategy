@@ -26,7 +26,7 @@ func (s *DefaultTargetSelector) SetDeck(d *domain.Deck) {
 
 func (s *DefaultTargetSelector) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
 	// Shared logic:
-	// Freeze -> Self.
+	// Freeze -> Self (if winning and high risk) or opponent with highest score.
 	// FlipThree -> High risk opponent (bust probability > 0.8) -> Leader opponent.
 	// GiveSecondChance -> Weakest opponent (least threat).
 
@@ -40,12 +40,7 @@ func (s *DefaultTargetSelector) ChooseTarget(action domain.ActionType, candidate
 		highestScore := -1
 
 		// Filter opponents
-		var opponents []*domain.Player
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				opponents = append(opponents, p)
-			}
-		}
+		opponents := filterOpponents(candidates, self)
 
 		if len(opponents) == 0 {
 			return self // Should not happen usually
@@ -115,12 +110,7 @@ func (s *RiskBasedTargetSelector) ChooseTarget(action domain.ActionType, candida
 		highestScore := -1
 
 		// Filter opponents
-		var opponents []*domain.Player
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				opponents = append(opponents, p)
-			}
-		}
+		opponents := filterOpponents(candidates, self)
 
 		if len(opponents) == 0 {
 			return self
@@ -174,9 +164,24 @@ func selectLeader(candidates []*domain.Player, self *domain.Player) *domain.Play
 	return bestTarget
 }
 
+// filterOpponents filters out the self player from the candidates list.
+func filterOpponents(candidates []*domain.Player, self *domain.Player) []*domain.Player {
+	var opponents []*domain.Player
+	for _, p := range candidates {
+		if p.ID != self.ID {
+			opponents = append(opponents, p)
+		}
+	}
+	return opponents
+}
+
 // RandomTargetSelector selects targets randomly (for Aggressive strategy).
 type RandomTargetSelector struct {
 	deck *domain.Deck
+}
+
+func NewRandomTargetSelector() *RandomTargetSelector {
+	return &RandomTargetSelector{}
 }
 
 func (s *RandomTargetSelector) SetDeck(d *domain.Deck) {
