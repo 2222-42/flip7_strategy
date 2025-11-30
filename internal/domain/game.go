@@ -17,13 +17,14 @@ const WinningThreshold = 200
 
 // Round represents a single round of play.
 type Round struct {
-	ID            uuid.UUID      `json:"id"`
-	Dealer        *Player        `json:"dealer"`
-	Players       []*Player      `json:"players"`
-	Deck          *Deck          `json:"deck"`
-	ActivePlayers []*Player      `json:"active_players"`
-	IsEnded       bool           `json:"is_ended"`
-	EndReason     RoundEndReason `json:"end_reason"`
+	ID               uuid.UUID      `json:"id"`
+	Dealer           *Player        `json:"dealer"`
+	Players          []*Player      `json:"players"`
+	Deck             *Deck          `json:"deck"`
+	ActivePlayers    []*Player      `json:"active_players"`
+	CurrentTurnIndex int            `json:"current_turn_index"`
+	IsEnded          bool           `json:"is_ended"`
+	EndReason        RoundEndReason `json:"end_reason"`
 }
 
 // NewRound creates a new round.

@@ -2,6 +2,8 @@ package application
 
 import (
 	"bufio"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -33,6 +35,20 @@ func (s *ManualGameService) Run() {
 }
 
 func (s *ManualGameService) setupPlayers() {
+	fmt.Println("Do you want to resume a game? (Enter save code or press Enter to start new)")
+	fmt.Print("Save Code: ")
+	saveCode, _ := s.Reader.ReadString('\n')
+	saveCode = strings.TrimSpace(saveCode)
+
+	if saveCode != "" {
+		if err := s.LoadState(saveCode); err != nil {
+			fmt.Printf("Failed to load game: %v. Starting new game.\n", err)
+		} else {
+			fmt.Println("Game resumed successfully!")
+			return
+		}
+	}
+
 	fmt.Print("Enter number of players: ")
 	numPlayersStr, err := s.Reader.ReadString('\n')
 	if err != nil {
@@ -107,88 +123,111 @@ func (s *ManualGameService) gameLoop() {
 }
 
 func (s *ManualGameService) playRound() {
-	// Initialize new round with deck
-	deck := domain.NewDeck()
-	dealer := s.Game.Players[s.Game.DealerIndex]
-	s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, deck)
-
-	fmt.Printf("\n--- New Round! Dealer: %s ---\n", dealer.Name)
-
-	// Reset hands (NewRound does this, but let's be sure)
-	// NewRound calls StartNewRound which resets hands.
+	// Initialize new round only if not resuming
+	if s.Game.CurrentRound == nil || s.Game.CurrentRound.IsEnded {
+		deck := domain.NewDeck()
+		dealer := s.Game.Players[s.Game.DealerIndex]
+		s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, deck)
+		fmt.Printf("\n--- New Round! Dealer: %s ---\n", dealer.Name)
+	} else {
+		fmt.Println("Resuming round...")
+	}
 
 	for !s.Game.CurrentRound.IsEnded {
-		// Round-Robin: Iterate through active players once per "round" of turns
-		// But wait, IsEnded checks if active players are empty.
-		// We need to iterate through a snapshot of active players.
-
-		activePlayers := make([]*domain.Player, len(s.Game.CurrentRound.ActivePlayers))
-		copy(activePlayers, s.Game.CurrentRound.ActivePlayers)
-
-		for _, currentPlayer := range activePlayers {
-			// Check if player is still active (might have been removed by previous player's action)
-			if currentPlayer.CurrentHand.Status != domain.HandStatusActive {
-				continue
-			}
-
-			fmt.Printf("\n>>> Turn: %s (Score: %d)\n", currentPlayer.Name, currentPlayer.TotalScore)
-			s.analyzeState(currentPlayer)
-
-			// Input loop for this turn (single action)
-			turnEnded := false
-			for !turnEnded {
-				fmt.Print("Input (0-12, +N, x2, F, T, C, S): ")
-				input, err := s.Reader.ReadString('\n')
-				if err != nil {
-					fmt.Println("Error reading input. Exiting game.")
-					return
-				}
-				input = strings.TrimSpace(input)
-
-				if strings.EqualFold(input, "S") {
-					// Validation: Cannot stay on first turn (empty hand) unless special conditions met
-					if !currentPlayer.CurrentHand.CanStay() {
-						fmt.Println("Invalid move: You must hit on your first turn (unless you have points or specific actions)!")
-						continue
-					}
-
-					currentPlayer.CurrentHand.Status = domain.HandStatusStayed
-					score := currentPlayer.BankCurrentHand()
-					fmt.Printf("%s banked %d points! Total: %d\n", currentPlayer.Name, score, currentPlayer.TotalScore)
-					s.Game.CurrentRound.RemoveActivePlayer(currentPlayer)
-					turnEnded = true
-				} else {
-					// Parse card or action
-					card, err := s.parseInput(input)
-					if err != nil {
-						fmt.Printf("Invalid input: %v. Try again.\n", err)
-						continue
-					}
-
-					// Remove card from deck (tracking)
-					if err := s.removeCardFromDeck(card); err != nil {
-						fmt.Printf("Error: %v. Try again.\n", err)
-						continue
-					}
-
-					// Process card
-					s.processCard(currentPlayer, card)
-
-					// Turn always ends after one action (Hit) or Action card
-					turnEnded = true
-				}
-			}
-
-			// Check if round ended during this loop (Flip 7 or all stayed)
-			if s.Game.CurrentRound.IsEnded {
-				break
-			}
-		}
-		// After round-robin pass, check if all players are inactive and round is not ended
-		if !s.Game.CurrentRound.IsEnded && len(s.Game.CurrentRound.ActivePlayers) == 0 {
+		if len(s.Game.CurrentRound.ActivePlayers) == 0 {
 			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
 			break
 		}
+
+		// Ensure index is valid
+		if s.Game.CurrentRound.CurrentTurnIndex >= len(s.Game.CurrentRound.ActivePlayers) {
+			s.Game.CurrentRound.CurrentTurnIndex = 0
+		}
+
+		currentPlayer := s.Game.CurrentRound.ActivePlayers[s.Game.CurrentRound.CurrentTurnIndex]
+
+		// Show Save Code
+		code, err := s.SaveState()
+		if err == nil {
+			fmt.Printf("\n[Save Code]: %s\n", code)
+		}
+
+		fmt.Printf("\n>>> Turn: %s (Score: %d)\n", currentPlayer.Name, currentPlayer.TotalScore)
+		s.analyzeState(currentPlayer)
+
+		// Input loop for this turn (single action)
+		turnEnded := false
+		playerRemoved := false
+
+		for !turnEnded {
+			fmt.Print("Input (0-12, +N, x2, F, T, C, S): ")
+			input, err := s.Reader.ReadString('\n')
+			if err != nil {
+				fmt.Println("Error reading input. Exiting game.")
+				return
+			}
+			input = strings.TrimSpace(input)
+
+			if strings.EqualFold(input, "S") {
+				// Validation: Cannot stay on first turn (empty hand) unless special conditions met
+				if !currentPlayer.CurrentHand.CanStay() {
+					fmt.Println("Invalid move: You must hit on your first turn (unless you have points or specific actions)!")
+					continue
+				}
+
+				currentPlayer.CurrentHand.Status = domain.HandStatusStayed
+				score := currentPlayer.BankCurrentHand()
+				fmt.Printf("%s banked %d points! Total: %d\n", currentPlayer.Name, score, currentPlayer.TotalScore)
+				s.Game.CurrentRound.RemoveActivePlayer(currentPlayer)
+				playerRemoved = true
+				turnEnded = true
+			} else {
+				// Parse card or action
+				card, err := s.parseInput(input)
+				if err != nil {
+					fmt.Printf("Invalid input: %v. Try again.\n", err)
+					continue
+				}
+
+				// Remove card from deck (tracking)
+				if err := s.removeCardFromDeck(card); err != nil {
+					fmt.Printf("Error: %v. Try again.\n", err)
+					continue
+				}
+
+				// Process card
+				s.processCard(currentPlayer, card)
+
+				// Check if player was removed (Bust, Flip7, Freeze)
+				// processCard calls RemoveActivePlayer in those cases.
+				// We need to check if currentPlayer is still in ActivePlayers.
+				isActive := false
+				for _, p := range s.Game.CurrentRound.ActivePlayers {
+					if p.ID == currentPlayer.ID {
+						isActive = true
+						break
+					}
+				}
+				if !isActive {
+					playerRemoved = true
+				}
+
+				// Turn always ends after one action (Hit) or Action card
+				turnEnded = true
+			}
+		}
+
+		// Check if round ended during this loop (Flip 7 or all stayed)
+		if s.Game.CurrentRound.IsEnded {
+			break
+		}
+
+		// Update Turn Index
+		if !playerRemoved {
+			s.Game.CurrentRound.CurrentTurnIndex++
+		}
+		// If player removed, the next player slides into the current index, so we don't increment.
+		// But we must ensure we wrap around if we were at the end (handled at start of loop).
 	}
 }
 
@@ -287,24 +326,25 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 // processCard handles the logic of adding a card to a player's hand and resolving its effects.
 //
 // Action Card Processing Order (based on domain model - docs/domain_model.md):
-// - Flip Three & Freeze: The player who DRAWS the card chooses a target player.
-//   The action effect is applied to the TARGET player, then the card is added to the DRAWER's hand.
-//   This order is important because:
-//   1. The drawer must choose a target before knowing the full outcome
-//   2. The target processes the effect (e.g., draws 3 cards for Flip Three)
-//   3. Only after resolution does the drawer add the action card to their own hand
 //
-// - Second Chance: Added to drawer's hand immediately. Per domain model (lines 173-175),
-//   if the drawer already has one, they must pass it to another active player (or discard
-//   if no valid target).
-//   NOTE: In Manual Mode, this passing logic is NOT automated. When a player draws a Second
-//   Chance and already has one, the user should track this situation and manually decide which
-//   active player receives it, then input the Second Chance card during that target player's
-//   turn instead of the original drawer's turn.
+//   - Flip Three & Freeze: The player who DRAWS the card chooses a target player.
+//     The action effect is applied to the TARGET player, then the card is added to the DRAWER's hand.
+//     This order is important because:
+//     1. The drawer must choose a target before knowing the full outcome
+//     2. The target processes the effect (e.g., draws 3 cards for Flip Three)
+//     3. Only after resolution does the drawer add the action card to their own hand
 //
-// - During Flip Three: Per domain model (lines 169-172), if the target draws another Flip Three
-//   or Freeze while drawing their 3 cards, those action cards are queued and resolved AFTER all
-//   3 cards are drawn (if the target hasn't busted). See resolveFlipThreeManual for details.
+//   - Second Chance: Added to drawer's hand immediately. Per domain model (lines 173-175),
+//     if the drawer already has one, they must pass it to another active player (or discard
+//     if no valid target).
+//     NOTE: In Manual Mode, this passing logic is NOT automated. When a player draws a Second
+//     Chance and already has one, the user should track this situation and manually decide which
+//     active player receives it, then input the Second Chance card during that target player's
+//     turn instead of the original drawer's turn.
+//
+//   - During Flip Three: Per domain model (lines 169-172), if the target draws another Flip Three
+//     or Freeze while drawing their 3 cards, those action cards are queued and resolved AFTER all
+//     3 cards are drawn (if the target hasn't busted). See resolveFlipThreeManual for details.
 //
 // Number/Modifier Cards: Added to the player's hand immediately, checked for bust/flip7.
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
@@ -396,10 +436,10 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 
 // resolveFlipThreeManual handles the Flip Three action effect on the target player.
 // Per domain model (docs/domain_model.md lines 169-172), Flip Three forces the target to:
-// 1. Draw 3 cards one by one
-// 2. If Second Chance is drawn: Process normally (set aside/use if duplicate drawn)
-// 3. If Flip Three or Freeze is drawn: Queue it and resolve AFTER all 3 cards are drawn
-//    (only if the target hasn't busted)
+//  1. Draw 3 cards one by one
+//  2. If Second Chance is drawn: Process normally (set aside/use if duplicate drawn)
+//  3. If Flip Three or Freeze is drawn: Queue it and resolve AFTER all 3 cards are drawn
+//     (only if the target hasn't busted)
 //
 // This function prompts the user to input 3 cards for the target player and processes
 // each card according to these rules. The loop exits early if the target busts.
@@ -467,5 +507,73 @@ func (s *ManualGameService) printWinner() {
 	fmt.Println("Game Over. Winner(s):")
 	for _, winner := range s.Game.Winners {
 		fmt.Printf(" - %s with %d points\n", winner.Name, winner.TotalScore)
+	}
+}
+
+// SaveState serializes the current game state to a base64 string.
+func (s *ManualGameService) SaveState() (string, error) {
+	data, err := json.Marshal(s.Game)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
+}
+
+// LoadState deserializes the game state from a base64 string.
+func (s *ManualGameService) LoadState(encoded string) error {
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("invalid code: %v", err)
+	}
+
+	var loadedGame domain.Game
+	if err := json.Unmarshal(decoded, &loadedGame); err != nil {
+		return fmt.Errorf("failed to parse game state: %v", err)
+	}
+
+	s.relinkPointers(&loadedGame)
+	s.Game = &loadedGame
+	return nil
+}
+
+func (s *ManualGameService) relinkPointers(g *domain.Game) {
+	playerMap := make(map[string]*domain.Player)
+	for _, p := range g.Players {
+		playerMap[p.ID.String()] = p
+		// Restore strategies (User is nil, others are Probabilistic/Adaptive)
+		if p.Name == "Me" {
+			p.Strategy = nil
+		} else {
+			// Default to ProbabilisticStrategy for others in manual mode
+			p.Strategy = &strategy.ProbabilisticStrategy{}
+		}
+	}
+
+	if g.CurrentRound != nil {
+		// Relink Round Players
+		for i, p := range g.CurrentRound.Players {
+			if existing, ok := playerMap[p.ID.String()]; ok {
+				g.CurrentRound.Players[i] = existing
+			}
+		}
+		// Relink Active Players
+		for i, p := range g.CurrentRound.ActivePlayers {
+			if existing, ok := playerMap[p.ID.String()]; ok {
+				g.CurrentRound.ActivePlayers[i] = existing
+			}
+		}
+		// Relink Dealer
+		if g.CurrentRound.Dealer != nil {
+			if existing, ok := playerMap[g.CurrentRound.Dealer.ID.String()]; ok {
+				g.CurrentRound.Dealer = existing
+			}
+		}
+	}
+
+	// Relink Winners
+	for i, p := range g.Winners {
+		if existing, ok := playerMap[p.ID.String()]; ok {
+			g.Winners[i] = existing
+		}
 	}
 }
