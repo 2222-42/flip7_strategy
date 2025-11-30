@@ -159,6 +159,13 @@ type ProbabilisticStrategy struct {
 	CommonTargetChooser
 }
 
+// NewProbabilisticStrategy returns a new ProbabilisticStrategy instance with default target selector.
+func NewProbabilisticStrategy() *ProbabilisticStrategy {
+	return &ProbabilisticStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+	}
+}
+
 // NewProbabilisticStrategyWithSelector returns a new ProbabilisticStrategy instance with a custom target selector.
 func NewProbabilisticStrategyWithSelector(selector TargetSelector) *ProbabilisticStrategy {
 	return &ProbabilisticStrategy{
