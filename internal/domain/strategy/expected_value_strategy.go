@@ -11,7 +11,16 @@ type ExpectedValueStrategy struct {
 
 // NewExpectedValueStrategy returns a new ExpectedValueStrategy instance.
 func NewExpectedValueStrategy() *ExpectedValueStrategy {
-	return &ExpectedValueStrategy{}
+	return &ExpectedValueStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+	}
+}
+
+// NewExpectedValueStrategyWithSelector returns a new ExpectedValueStrategy instance with a custom target selector.
+func NewExpectedValueStrategyWithSelector(selector TargetSelector) *ExpectedValueStrategy {
+	return &ExpectedValueStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
+	}
 }
 
 func (s *ExpectedValueStrategy) Name() string {
