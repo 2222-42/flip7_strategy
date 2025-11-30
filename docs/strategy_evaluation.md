@@ -133,17 +133,17 @@ We re-ran the Multiplayer and Strategy Combination evaluations using the optimal
 
 | Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
 | :--- | :--- | :--- | :--- | :--- |
-| **Adaptive (Standard)** | **20.80%** | **21.75%** | **20.45%** | 19.40% |
-| **ExpectedValue** | 17.50% | 19.00% | 20.60% | **20.70%** |
-| **Heuristic-27** | 17.30% | 14.75% | 17.75% | 19.20% |
-| Probabilistic | 16.00% | 19.80% | 17.20% | 17.65% |
-| Aggressive | 18.00% | 17.40% | 17.80% | 18.10% |
-| Cautious | 10.40% | 7.30% | 6.20% | 4.95% |
+| **Adaptive (Optimized)** | **21.10%** | **20.85%** | 20.05% | 17.80% |
+| **ExpectedValue** | 17.15% | 20.55% | **21.90%** | 20.05% |
+| **Heuristic-27** | 16.95% | 15.75% | 18.20% | **20.65%** |
+| Probabilistic | 16.60% | 18.10% | 17.75% | 17.30% |
+| Aggressive | 18.40% | 17.15% | 18.10% | 19.45% |
+| Cautious | 9.80% | 7.60% | 4.00% | 4.75% |
 
 *Analysis*:
-- **Adaptive (Optimized)** has strengthened its dominance in 2 and 3 player games.
-- **Heuristic-27** remains the best for 4 players.
-- **ExpectedValue** dominates 5-player games.
+- **Adaptive (Optimized)** remains strong in 2 and 3 player games.
+- **ExpectedValue** is extremely consistent, performing well across all player counts and winning 4-player games.
+- **Heuristic-27** showed a spike in 5-player games in this batch.
 
 #### Strategy Combination Evaluation (1vs1 Matchups)
 
