@@ -33,12 +33,8 @@ func (s *AdaptiveStrategy) Name() string {
 
 func (s *AdaptiveStrategy) SetDeck(deck *domain.Deck) {
 	s.CommonTargetChooser.SetDeck(deck)
-	if ds, ok := interface{}(s.Aggressive).(interface{ SetDeck(*domain.Deck) }); ok {
-		ds.SetDeck(deck)
-	}
-	if ds, ok := interface{}(s.ExpectedValue).(interface{ SetDeck(*domain.Deck) }); ok {
-		ds.SetDeck(deck)
-	}
+	s.Aggressive.SetDeck(deck)
+	s.ExpectedValue.SetDeck(deck)
 }
 
 func (s *AdaptiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
