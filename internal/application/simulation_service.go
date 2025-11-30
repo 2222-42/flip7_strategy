@@ -265,3 +265,66 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		}
 	}
 }
+
+func (s *SimulationService) RunTargetSelectionSimulation(n int) {
+	fmt.Printf("Running Target Selection Simulation (%d games)...\n", n)
+
+	// Define strategies with different target selectors
+	strategies := []struct {
+		Name  string
+		Strat domain.Strategy
+	}{
+		{"EV-Default", strategy.NewExpectedValueStrategy()},
+		{"EV-Risk-0.5", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.5))},
+		{"EV-Risk-0.65", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.65))},
+		{"EV-Risk-0.8", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.8))},
+		{"EV-Risk-0.9", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.9))},
+	}
+
+	wins := make(map[string]float64)
+
+	for i := 0; i < n; i++ {
+		var players []*domain.Player
+		for _, s := range strategies {
+			// Create fresh strategy instance if needed, but here we reuse the config
+			// Note: Strategies are stateless regarding game state, but `SetDeck` is called.
+			// Since we run one game at a time, it's fine to reuse the strategy instance *definition*
+			// but we should probably create new instances to be safe if they hold state.
+			// Actually, `ExpectedValueStrategy` holds `CommonTargetChooser` which holds `deck`.
+			// `SetDeck` overwrites it. So it should be fine.
+			// However, `NewPlayer` takes a strategy.
+			players = append(players, domain.NewPlayer(s.Name, s.Strat))
+		}
+
+		game := domain.NewGame(players)
+		svc := NewGameService(game)
+		svc.Silent = true
+		svc.RunGame()
+
+		if len(game.Winners) > 0 {
+			points := 1.0 / float64(len(game.Winners))
+			for _, winner := range game.Winners {
+				wins[winner.Name] += points
+			}
+		}
+	}
+
+	fmt.Println("\n--- Target Selection Results ---")
+	// Sort by wins
+	type Result struct {
+		Name string
+		Wins float64
+	}
+	var results []Result
+	for name, count := range wins {
+		results = append(results, Result{Name: name, Wins: count})
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Wins > results[j].Wins
+	})
+
+	for _, res := range results {
+		percentage := res.Wins / float64(n) * 100
+		fmt.Printf("%-15s: %.2f wins (%.2f%%)\n", res.Name, res.Wins, percentage)
+	}
+}

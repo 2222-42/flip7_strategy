@@ -88,16 +88,18 @@ func (s *CautiousStrategy) ChooseTarget(action domain.ActionType, candidates []*
 
 // AggressiveStrategy pushes luck until high risk.
 type AggressiveStrategy struct {
-	deck *domain.Deck
+	TargetSelector
 }
 
 func (s *AggressiveStrategy) SetDeck(d *domain.Deck) {
-	s.deck = d
+	s.TargetSelector.SetDeck(d)
 }
 
 // NewAggressiveStrategy returns a new AggressiveStrategy instance.
 func NewAggressiveStrategy() *AggressiveStrategy {
-	return &AggressiveStrategy{}
+	return &AggressiveStrategy{
+		TargetSelector: &RandomTargetSelector{},
+	}
 }
 
 func (s *AggressiveStrategy) Name() string {
@@ -119,131 +121,24 @@ func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, 
 	return domain.TurnChoiceHit
 }
 
-func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
-	// Aggressive:
-	// Freeze -> Self
-	// FlipThree -> Opponent
-	// GiveSecondChance -> Random player
-
-	if action == domain.ActionFreeze {
-		return chooseFreezeTarget(candidates, self, s.deck)
-	}
-
-	if action == domain.ActionGiveSecondChance {
-		// GiveSecondChance: Give to random player
-		return candidates[rand.Intn(len(candidates))]
-	}
-
-	var opponents []*domain.Player
-	for _, p := range candidates {
-		if p.ID != self.ID {
-			opponents = append(opponents, p)
-		}
-	}
-	if len(opponents) > 0 {
-		return opponents[rand.Intn(len(opponents))]
-	}
-	return self
-}
-
 // CommonTargetChooser implements shared target selection logic.
+// Deprecated: Use DefaultTargetSelector instead.
 type CommonTargetChooser struct {
-	deck *domain.Deck
+	TargetSelector
 }
 
 func (c *CommonTargetChooser) SetDeck(d *domain.Deck) {
-	c.deck = d
+	if c.TargetSelector == nil {
+		c.TargetSelector = NewDefaultTargetSelector()
+	}
+	c.TargetSelector.SetDeck(d)
 }
 
 func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
-	// Shared logic:
-	// Freeze -> Self.
-	// FlipThree -> High risk opponent (bust probability > 0.8) -> Leader opponent.
-	// GiveSecondChance -> Weakest opponent (least threat).
-
-	if action == domain.ActionFreeze {
-		return chooseFreezeTarget(candidates, self, c.deck)
+	if c.TargetSelector == nil {
+		c.TargetSelector = NewDefaultTargetSelector()
 	}
-
-	if action == domain.ActionFlipThree {
-		// Check for high-risk opponents
-		var bestTarget *domain.Player
-		highestScore := -1
-
-		// Filter opponents
-		var opponents []*domain.Player
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				opponents = append(opponents, p)
-			}
-		}
-
-		if len(opponents) == 0 {
-			return self // Should not happen usually
-		}
-
-		// Check risk for each opponent
-		for _, p := range opponents {
-			risk := 0.0
-			if c.deck != nil {
-				risk = c.deck.EstimateFlipThreeRisk(p.CurrentHand.NumberCards, p.CurrentHand.HasSecondChance())
-			}
-			if risk > 0.8 {
-				if p.TotalScore > highestScore {
-					highestScore = p.TotalScore
-					bestTarget = p
-				}
-			}
-		}
-
-		if bestTarget != nil {
-			return bestTarget
-		}
-
-		// Fallback to Leader logic (existing logic below)
-	}
-
-	if action == domain.ActionGiveSecondChance {
-		var bestTarget *domain.Player
-		minScore := -1
-
-		for _, p := range candidates {
-			if p.ID != self.ID { // Only consider opponents
-				if p.CurrentHand.HasSecondChance() {
-					continue
-				}
-				if minScore == -1 || p.TotalScore < minScore {
-					minScore = p.TotalScore
-					bestTarget = p
-				}
-			}
-		}
-		if bestTarget != nil {
-			return bestTarget
-		}
-		return candidates[0]
-	}
-
-	bestTarget := self
-	maxScore := -1
-	for _, p := range candidates {
-		if p.ID != self.ID {
-			if p.TotalScore > maxScore {
-				maxScore = p.TotalScore
-				bestTarget = p
-			}
-		}
-	}
-
-	if bestTarget.ID == self.ID && len(candidates) > 1 {
-		for _, p := range candidates {
-			if p.ID != self.ID {
-				return p
-			}
-		}
-	}
-
-	return bestTarget
+	return c.TargetSelector.ChooseTarget(action, candidates, self)
 }
 
 // ProbabilisticStrategy uses expected value (simplified).
@@ -323,7 +218,10 @@ type HeuristicStrategy struct {
 }
 
 func NewHeuristicStrategy(threshold int) *HeuristicStrategy {
-	return &HeuristicStrategy{Threshold: threshold}
+	return &HeuristicStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+		Threshold:           threshold,
+	}
 }
 
 func (s *HeuristicStrategy) Name() string {
