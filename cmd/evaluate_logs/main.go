@@ -53,7 +53,9 @@ func main() {
 
 		var details map[string]interface{}
 		if len(row) > 5 {
-			json.Unmarshal([]byte(row[5]), &details)
+			if err := json.Unmarshal([]byte(row[5]), &details); err != nil {
+				fmt.Printf("Error unmarshalling details: %v\n", err)
+			}
 		}
 
 		records = append(records, LogRecord{
