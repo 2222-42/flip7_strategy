@@ -102,6 +102,13 @@ func NewAggressiveStrategy() *AggressiveStrategy {
 	}
 }
 
+// NewAggressiveStrategyWithSelector returns a new AggressiveStrategy instance with a custom target selector.
+func NewAggressiveStrategyWithSelector(selector TargetSelector) *AggressiveStrategy {
+	return &AggressiveStrategy{
+		TargetSelector: selector,
+	}
+}
+
 func (s *AggressiveStrategy) Name() string {
 	return "Aggressive"
 }
@@ -144,6 +151,13 @@ func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates 
 // ProbabilisticStrategy uses expected value (simplified).
 type ProbabilisticStrategy struct {
 	CommonTargetChooser
+}
+
+// NewProbabilisticStrategyWithSelector returns a new ProbabilisticStrategy instance with a custom target selector.
+func NewProbabilisticStrategyWithSelector(selector TargetSelector) *ProbabilisticStrategy {
+	return &ProbabilisticStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
+	}
 }
 
 func (s *ProbabilisticStrategy) Name() string {
@@ -220,6 +234,14 @@ type HeuristicStrategy struct {
 func NewHeuristicStrategy(threshold int) *HeuristicStrategy {
 	return &HeuristicStrategy{
 		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+		Threshold:           threshold,
+	}
+}
+
+// NewHeuristicStrategyWithSelector returns a new HeuristicStrategy instance with a custom target selector.
+func NewHeuristicStrategyWithSelector(threshold int, selector TargetSelector) *HeuristicStrategy {
+	return &HeuristicStrategy{
+		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
 		Threshold:           threshold,
 	}
 }

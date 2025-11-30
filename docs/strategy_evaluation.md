@@ -58,3 +58,62 @@ The **Refined Freeze Strategy** (risk-aware targeting) has solidified the **Adap
 - **ExpectedValue** remains strong but lost its slight edge against Adaptive.
 - **Aggressive** and **Heuristic-27** are viable but less consistent.
 - **Cautious** remains the weakest.
+
+### 4. Target Selection Optimization (Flip Three Risk Thresholds)
+
+We ran a comprehensive simulation (1000 games per batch) to find the optimal "Flip Three" risk threshold for each strategy. The risk threshold determines when to target an opponent: if their estimated bust risk is greater than the threshold, they are targeted.
+
+#### 1. Expected Value Strategy
+*Optimal Threshold: 0.70*
+
+| Risk Threshold | Win Rate | vs Standard Aggressive |
+| :--- | :--- | :--- |
+| **0.70** | **15.10%** | -0.75% |
+| 0.80 | 14.65% | -1.20% |
+| 0.65 | 13.95% | -1.90% |
+| 0.50 | 12.40% | -3.45% |
+| 0.90 | 12.20% | -3.65% |
+
+#### 2. Probabilistic Strategy
+*Optimal Threshold: 0.50*
+
+| Risk Threshold | Win Rate | vs Standard Aggressive |
+| :--- | :--- | :--- |
+| **0.50** | **14.95%** | -0.80% |
+| 0.80 | 14.45% | -1.30% |
+| 0.90 | 13.80% | -1.95% |
+| 0.70 | 13.65% | -2.10% |
+| 0.65 | 11.30% | -4.45% |
+
+#### 3. Heuristic Strategy (Threshold 27)
+*Optimal Threshold: 0.65*
+
+| Risk Threshold | Win Rate | vs Standard Aggressive |
+| :--- | :--- | :--- |
+| **0.65** | **15.05%** | **+0.70%** |
+| 0.70 | 14.30% | -0.05% |
+| 0.90 | 13.20% | -1.15% |
+| 0.50 | 13.00% | -1.35% |
+| 0.80 | 12.95% | -1.40% |
+
+#### 4. Aggressive Strategy
+*Optimal Threshold: 0.90*
+
+| Risk Threshold | Win Rate | vs Standard Aggressive |
+| :--- | :--- | :--- |
+| **0.90** | **15.20%** | **+1.55%** |
+| 0.70 | 14.40% | +0.75% |
+| 0.80 | 13.85% | +0.20% |
+| 0.50 | 13.85% | +0.20% |
+| 0.65 | 13.55% | -0.10% |
+
+#### Key Findings & Analysis
+- **Diverse Optima**: There is no single "best" risk threshold for all strategies.
+    - **Expected Value (0.70)**: Benefits from a balanced approach.
+    - **Probabilistic (0.50)**: Benefits from aggressive targeting (targeting anyone with >50% risk), likely because the strategy itself is conservative in play, so aggressive targeting compensates.
+    - **Heuristic (0.65)**: Benefits from a moderately aggressive threshold. This combination yielded the highest win rate against the standard Aggressive baseline in its batch.
+    - **Aggressive (0.90)**: Benefits from a very conservative targeting threshold. Since the strategy plays aggressively (taking risks itself), it seems beneficial to only target opponents who are almost guaranteed to bust (>90%), ensuring the "Flip Three" is effective.
+
+- **Synergy**: The results suggest a synergy between playing style and targeting style.
+    - **Conservative Play + Aggressive Targeting**: Probabilistic (Conservative) + 0.50 (Aggressive Targeting) works well.
+    - **Aggressive Play + Conservative Targeting**: Aggressive (Aggressive) + 0.90 (Conservative Targeting) works well.

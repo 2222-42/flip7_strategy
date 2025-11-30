@@ -27,7 +27,7 @@ func (s *SimulationService) RunMonteCarlo(n int) {
 	for i := 0; i < n; i++ {
 		// Create players
 		p1 := domain.NewPlayer("Alice (Cautious)", &strategy.CautiousStrategy{})
-		p2 := domain.NewPlayer("Bob (Aggressive)", &strategy.AggressiveStrategy{})
+		p2 := domain.NewPlayer("Bob (Aggressive)", strategy.NewAggressiveStrategy())
 		p3 := domain.NewPlayer("Charlie (Probabilistic)", &strategy.ProbabilisticStrategy{})
 		p4 := domain.NewPlayer("Dave (Heuristic)", strategy.NewHeuristicStrategy(strategy.DefaultHeuristicThreshold))
 		p5 := domain.NewPlayer("Eve (ExpectedValue)", &strategy.ExpectedValueStrategy{})
@@ -70,7 +70,7 @@ func (s *SimulationService) RunHeuristicOptimization(gamesPerThreshold int) {
 		wins := 0.0
 		for i := 0; i < gamesPerThreshold; i++ {
 			p1 := domain.NewPlayer("Alice", &strategy.CautiousStrategy{})
-			p2 := domain.NewPlayer("Bob", &strategy.AggressiveStrategy{})
+			p2 := domain.NewPlayer("Bob", strategy.NewAggressiveStrategy())
 			p3 := domain.NewPlayer("Charlie", &strategy.ProbabilisticStrategy{})
 			p4 := domain.NewPlayer("Dave", strategy.NewHeuristicStrategy(threshold))
 
@@ -114,7 +114,7 @@ func (s *SimulationService) RunSinglePlayerOptimization(n int) {
 		Strat domain.Strategy
 	}{
 		{"Cautious", &strategy.CautiousStrategy{}},
-		{"Aggressive", &strategy.AggressiveStrategy{}},
+		{"Aggressive", strategy.NewAggressiveStrategy()},
 		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
 		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
 		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
@@ -166,7 +166,7 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 	// Strategies pool
 	strats := []domain.Strategy{
 		&strategy.CautiousStrategy{},
-		&strategy.AggressiveStrategy{},
+		strategy.NewAggressiveStrategy(),
 		&strategy.ProbabilisticStrategy{},
 		strategy.NewHeuristicStrategy(27),
 		&strategy.ExpectedValueStrategy{},
@@ -220,7 +220,7 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		Strat domain.Strategy
 	}{
 		{"Cautious", &strategy.CautiousStrategy{}},
-		{"Aggressive", &strategy.AggressiveStrategy{}},
+		{"Aggressive", strategy.NewAggressiveStrategy()},
 		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
 		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
 		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
@@ -270,61 +270,91 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 	fmt.Printf("Running Target Selection Simulation (%d games)...\n", n)
 
 	// Define strategies with different target selectors
-	strategies := []struct {
+	type StrategyConfig struct {
 		Name  string
 		Strat domain.Strategy
-	}{
-		{"EV-Default", strategy.NewExpectedValueStrategy()},
-		{"EV-Risk-0.5", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.5))},
-		{"EV-Risk-0.65", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.65))},
-		{"EV-Risk-0.8", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.8))},
-		{"EV-Risk-0.9", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.9))},
 	}
+	// Define thresholds
+	thresholds := []float64{0.5, 0.65, 0.7, 0.8, 0.9}
 
-	wins := make(map[string]float64)
+	// Helper to run a batch
+	runBatch := func(batchName string, targetStrategies []StrategyConfig) {
+		fmt.Printf("\n--- Batch: %s ---\n", batchName)
+		wins := make(map[string]float64)
 
-	for i := 0; i < n; i++ {
-		var players []*domain.Player
-		for _, s := range strategies {
-			// Create fresh strategy instance if needed, but here we reuse the config
-			// Note: Strategies are stateless regarding game state, but `SetDeck` is called.
-			// Since we run one game at a time, it's fine to reuse the strategy instance *definition*
-			// but we should probably create new instances to be safe if they hold state.
-			// Actually, `ExpectedValueStrategy` holds `CommonTargetChooser` which holds `deck`.
-			// `SetDeck` overwrites it. So it should be fine.
-			// However, `NewPlayer` takes a strategy.
-			players = append(players, domain.NewPlayer(s.Name, s.Strat))
-		}
+		for i := 0; i < n; i++ {
+			var players []*domain.Player
+			// Add target strategies
+			for _, s := range targetStrategies {
+				players = append(players, domain.NewPlayer(s.Name, s.Strat))
+			}
+			// Add some standard opponents to fill the table and provide a baseline
+			// 5 target strategies + 3 standard = 8 players
+			players = append(players, domain.NewPlayer("Standard-Cautious", &strategy.CautiousStrategy{}))
+			players = append(players, domain.NewPlayer("Standard-Aggressive", strategy.NewAggressiveStrategy()))
+			players = append(players, domain.NewPlayer("Standard-Probabilistic", &strategy.ProbabilisticStrategy{}))
 
-		game := domain.NewGame(players)
-		svc := NewGameService(game)
-		svc.Silent = true
-		svc.RunGame()
+			game := domain.NewGame(players)
+			svc := NewGameService(game)
+			svc.Silent = true
+			svc.RunGame()
 
-		if len(game.Winners) > 0 {
-			points := 1.0 / float64(len(game.Winners))
-			for _, winner := range game.Winners {
-				wins[winner.Name] += points
+			if len(game.Winners) > 0 {
+				points := 1.0 / float64(len(game.Winners))
+				for _, winner := range game.Winners {
+					wins[winner.Name] += points
+				}
 			}
 		}
+
+		// Sort and print results for this batch
+		type Result struct {
+			Name string
+			Wins float64
+		}
+		var results []Result
+		for name, count := range wins {
+			results = append(results, Result{Name: name, Wins: count})
+		}
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Wins > results[j].Wins
+		})
+
+		for _, res := range results {
+			percentage := res.Wins / float64(n) * 100
+			fmt.Printf("%-25s: %.2f wins (%.2f%%)\n", res.Name, res.Wins, percentage)
+		}
 	}
 
-	fmt.Println("\n--- Target Selection Results ---")
-	// Sort by wins
-	type Result struct {
-		Name string
-		Wins float64
+	// 1. Expected Value Batch
+	var evStrategies []StrategyConfig
+	for _, t := range thresholds {
+		name := fmt.Sprintf("EV-Risk-%.2f", t)
+		evStrategies = append(evStrategies, StrategyConfig{Name: name, Strat: strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
 	}
-	var results []Result
-	for name, count := range wins {
-		results = append(results, Result{Name: name, Wins: count})
-	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Wins > results[j].Wins
-	})
+	runBatch("Expected Value", evStrategies)
 
-	for _, res := range results {
-		percentage := res.Wins / float64(n) * 100
-		fmt.Printf("%-15s: %.2f wins (%.2f%%)\n", res.Name, res.Wins, percentage)
+	// 2. Probabilistic Batch
+	var probStrategies []StrategyConfig
+	for _, t := range thresholds {
+		name := fmt.Sprintf("Prob-Risk-%.2f", t)
+		probStrategies = append(probStrategies, StrategyConfig{Name: name, Strat: strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
 	}
+	runBatch("Probabilistic", probStrategies)
+
+	// 3. Heuristic Batch
+	var heurStrategies []StrategyConfig
+	for _, t := range thresholds {
+		name := fmt.Sprintf("Heur-Risk-%.2f", t)
+		heurStrategies = append(heurStrategies, StrategyConfig{Name: name, Strat: strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(t))})
+	}
+	runBatch("Heuristic", heurStrategies)
+
+	// 4. Aggressive Batch
+	var aggrStrategies []StrategyConfig
+	for _, t := range thresholds {
+		name := fmt.Sprintf("Aggr-Risk-%.2f", t)
+		aggrStrategies = append(aggrStrategies, StrategyConfig{Name: name, Strat: strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
+	}
+	runBatch("Aggressive", aggrStrategies)
 }
