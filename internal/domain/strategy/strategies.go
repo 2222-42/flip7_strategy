@@ -92,13 +92,19 @@ type AggressiveStrategy struct {
 }
 
 func (s *AggressiveStrategy) SetDeck(d *domain.Deck) {
-	s.TargetSelector.SetDeck(d)
+	if s.TargetSelector != nil {
+		s.TargetSelector.SetDeck(d)
+	}
+}
+
+func (s *AggressiveStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+	return s.TargetSelector.ChooseTarget(action, candidates, self)
 }
 
 // NewAggressiveStrategy returns a new AggressiveStrategy instance.
 func NewAggressiveStrategy() *AggressiveStrategy {
 	return &AggressiveStrategy{
-		TargetSelector: &RandomTargetSelector{},
+		TargetSelector: NewRandomTargetSelector(),
 	}
 }
 

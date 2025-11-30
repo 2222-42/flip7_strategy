@@ -107,3 +107,83 @@ func TestAdaptiveStrategy_ChooseTarget(t *testing.T) {
 		t.Errorf("Expected GiveSecondChance target to be Weakest (p3), got %v", target.ID)
 	}
 }
+
+func TestAdaptiveStrategy_ChooseTarget_DynamicDelegation(t *testing.T) {
+	s := strategy.NewAdaptiveStrategy()
+
+	self := &domain.Player{
+		ID:         domain.NewPlayer("Self", nil).ID,
+		Name:       "Self",
+		TotalScore: 100,
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	// Create opponents - one with high score (threat)
+	opponentThreat := &domain.Player{
+		ID:         domain.NewPlayer("OpponentThreat", nil).ID,
+		Name:       "OpponentThreat",
+		TotalScore: 205, // Above winning threshold (200)
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	opponentNormal := &domain.Player{
+		ID:         domain.NewPlayer("OpponentNormal", nil).ID,
+		Name:       "OpponentNormal",
+		TotalScore: 150, // Below winning threshold
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	opponentWeak := &domain.Player{
+		ID:         domain.NewPlayer("OpponentWeak", nil).ID,
+		Name:       "OpponentWeak",
+		TotalScore: 50,
+		CurrentHand: &domain.PlayerHand{
+			NumberCards: make(map[domain.NumberValue]struct{}),
+		},
+	}
+
+	deck := domain.NewDeck()
+	s.SetDeck(deck)
+
+	t.Run("Uses Aggressive targeting when opponent >= 200", func(t *testing.T) {
+		// With a threat opponent (>= 200), should use Aggressive strategy targeting
+		// Aggressive uses RandomTargetSelector which targets random opponents
+		candidates := []*domain.Player{self, opponentThreat, opponentNormal}
+		target := s.ChooseTarget(domain.ActionFlipThree, candidates, self)
+
+		// Should target one of the opponents (not self)
+		if target.ID == self.ID {
+			t.Errorf("Expected to target an opponent, got self")
+		}
+	})
+
+	t.Run("Uses ExpectedValue targeting when opponent < 200", func(t *testing.T) {
+		// Without a threat opponent (all < 200), should use ExpectedValue strategy targeting
+		// ExpectedValue uses DefaultTargetSelector which targets the leader
+		candidates := []*domain.Player{self, opponentNormal, opponentWeak}
+		target := s.ChooseTarget(domain.ActionFlipThree, candidates, self)
+
+		// Should target the leader (opponentNormal with 150)
+		if target.ID != opponentNormal.ID {
+			t.Errorf("Expected to target leader opponent (OpponentNormal), got %s", target.Name)
+		}
+	})
+
+	t.Run("GiveSecondChance targets weakest without threat", func(t *testing.T) {
+		// Without threat, should use ExpectedValue targeting logic
+		// GiveSecondChance targets weakest opponent
+		candidates := []*domain.Player{self, opponentNormal, opponentWeak}
+		target := s.ChooseTarget(domain.ActionGiveSecondChance, candidates, self)
+
+		// Should target the weakest opponent
+		if target.ID != opponentWeak.ID {
+			t.Errorf("Expected to target weakest opponent (OpponentWeak), got %s", target.Name)
+		}
+	})
+}
