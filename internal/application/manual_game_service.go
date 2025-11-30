@@ -14,6 +14,12 @@ import (
 
 const FlipThreeCardCount = 3
 
+// gameStateWrapper wraps the game state with metadata for serialization.
+type gameStateWrapper struct {
+	Game              *domain.Game `json:"game"`
+	UserControlledIDs []string     `json:"user_controlled_ids"` // IDs of players with nil strategy
+}
+
 // ManualGameService handles the manual mode where the user inputs game events.
 type ManualGameService struct {
 	Game   *domain.Game
@@ -512,7 +518,20 @@ func (s *ManualGameService) printWinner() {
 
 // SaveState serializes the current game state to a base64 string.
 func (s *ManualGameService) SaveState() (string, error) {
-	data, err := json.Marshal(s.Game)
+	// Collect IDs of user-controlled players (those with nil strategy)
+	var userControlledIDs []string
+	for _, p := range s.Game.Players {
+		if p.Strategy == nil {
+			userControlledIDs = append(userControlledIDs, p.ID.String())
+		}
+	}
+
+	wrapper := gameStateWrapper{
+		Game:              s.Game,
+		UserControlledIDs: userControlledIDs,
+	}
+
+	data, err := json.Marshal(wrapper)
 	if err != nil {
 		return "", err
 	}
@@ -526,25 +545,41 @@ func (s *ManualGameService) LoadState(encoded string) error {
 		return fmt.Errorf("invalid code: %v", err)
 	}
 
-	var loadedGame domain.Game
-	if err := json.Unmarshal(decoded, &loadedGame); err != nil {
+	var wrapper gameStateWrapper
+	if err := json.Unmarshal(decoded, &wrapper); err != nil {
 		return fmt.Errorf("failed to parse game state: %v", err)
 	}
 
-	s.relinkPointers(&loadedGame)
-	s.Game = &loadedGame
+	// Validate that the loaded game is resumable
+	if wrapper.Game.IsCompleted {
+		return fmt.Errorf("cannot resume: the loaded game is already completed")
+	}
+	if wrapper.Game.CurrentRound != nil && wrapper.Game.CurrentRound.IsEnded {
+		return fmt.Errorf("cannot resume: the current round in the loaded game is already ended")
+	}
+
+	s.RelinkPointers(wrapper.Game, wrapper.UserControlledIDs)
+	s.Game = wrapper.Game
 	return nil
 }
 
-func (s *ManualGameService) relinkPointers(g *domain.Game) {
+// RelinkPointers restores pointer relationships after deserialization.
+// It ensures that all references to players point to the same instances and restores strategies.
+func (s *ManualGameService) RelinkPointers(g *domain.Game, userControlledIDs []string) {
+	// Create a set of user-controlled player IDs for quick lookup
+	userControlledSet := make(map[string]bool)
+	for _, id := range userControlledIDs {
+		userControlledSet[id] = true
+	}
+
 	playerMap := make(map[string]*domain.Player)
 	for _, p := range g.Players {
 		playerMap[p.ID.String()] = p
-		// Restore strategies (User is nil, others are Probabilistic/Adaptive)
-		if p.Name == "Me" {
+		// Restore strategies based on user control
+		if userControlledSet[p.ID.String()] {
 			p.Strategy = nil
 		} else {
-			// Default to ProbabilisticStrategy for others in manual mode
+			// Default to ProbabilisticStrategy for AI players in manual mode
 			p.Strategy = &strategy.ProbabilisticStrategy{}
 		}
 	}
