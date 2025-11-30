@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 )
@@ -51,6 +52,19 @@ type Card struct {
 	Value        NumberValue  `json:"value,omitempty"`         // For Number cards
 	ModifierType ModifierType `json:"modifier_type,omitempty"` // For Modifier cards
 	ActionType   ActionType   `json:"action_type,omitempty"`   // For Action cards
+}
+
+func (c Card) String() string {
+	switch c.Type {
+	case CardTypeNumber:
+		return fmt.Sprintf("%d", c.Value)
+	case CardTypeModifier:
+		return string(c.ModifierType)
+	case CardTypeAction:
+		return string(c.ActionType)
+	default:
+		return "unknown"
+	}
 }
 
 // Deck represents the deck of cards.

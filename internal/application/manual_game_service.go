@@ -8,7 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
+
 	"flip7_strategy/internal/domain"
+	"flip7_strategy/internal/domain/logger"
 	"flip7_strategy/internal/domain/strategy"
 )
 
@@ -24,12 +27,16 @@ type gameStateWrapper struct {
 type ManualGameService struct {
 	Game   *domain.Game
 	Reader *bufio.Reader
+	Logger logger.GameLogger
+	GameID string
 }
 
 // NewManualGameService creates a new ManualGameService.
-func NewManualGameService(reader *bufio.Reader) *ManualGameService {
+func NewManualGameService(reader *bufio.Reader, logger logger.GameLogger) *ManualGameService {
 	return &ManualGameService{
 		Reader: reader,
+		Logger: logger,
+		GameID: fmt.Sprintf("game_%d", time.Now().Unix()),
 	}
 }
 
@@ -108,7 +115,23 @@ func (s *ManualGameService) setupPlayers() {
 
 	s.Game = domain.NewGame(players)
 	s.Game.DealerIndex = startIdx - 1 // Set initial dealer index
+
+	if s.Logger != nil {
+		s.Logger.Log(s.GameID, "0", "system", "GameStart", map[string]interface{}{
+			"num_players": len(players),
+			"players":     getPlayerNames(players),
+		})
+	}
+
 	fmt.Println("Game started!")
+}
+
+func getPlayerNames(players []*domain.Player) []string {
+	names := make([]string, len(players))
+	for i, p := range players {
+		names[i] = p.Name
+	}
+	return names
 }
 
 func (s *ManualGameService) gameLoop() {
@@ -126,6 +149,12 @@ func (s *ManualGameService) gameLoop() {
 		}
 	}
 	s.printWinner()
+
+	if s.Logger != nil {
+		s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), "system", "GameEnd", map[string]interface{}{
+			"winners": getPlayerNames(s.Game.Winners),
+		})
+	}
 }
 
 func (s *ManualGameService) playRound() {
@@ -135,6 +164,12 @@ func (s *ManualGameService) playRound() {
 		dealer := s.Game.Players[s.Game.DealerIndex]
 		s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, deck)
 		fmt.Printf("\n--- New Round! Dealer: %s ---\n", dealer.Name)
+
+		if s.Logger != nil {
+			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), "system", "RoundStart", map[string]interface{}{
+				"dealer": dealer.Name,
+			})
+		}
 	} else {
 		fmt.Println("Resuming round...")
 	}
@@ -169,6 +204,14 @@ func (s *ManualGameService) playRound() {
 		}
 
 		fmt.Printf("\n>>> Turn: %s (Score: %d)\n", currentPlayer.Name, currentPlayer.TotalScore)
+
+		if s.Logger != nil {
+			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), currentPlayer.ID.String(), "TurnStart", map[string]interface{}{
+				"score":      currentPlayer.TotalScore,
+				"hand_score": domain.NewScoreCalculator().Compute(currentPlayer.CurrentHand).Total,
+			})
+		}
+
 		s.analyzeState(currentPlayer)
 
 		// Input loop for this turn (single action)
@@ -194,6 +237,14 @@ func (s *ManualGameService) playRound() {
 				currentPlayer.CurrentHand.Status = domain.HandStatusStayed
 				score := currentPlayer.BankCurrentHand()
 				fmt.Printf("%s banked %d points! Total: %d\n", currentPlayer.Name, score, currentPlayer.TotalScore)
+
+				if s.Logger != nil {
+					s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), currentPlayer.ID.String(), "Stay", map[string]interface{}{
+						"banked_score": score,
+						"total_score":  currentPlayer.TotalScore,
+					})
+				}
+
 				s.Game.CurrentRound.RemoveActivePlayer(currentPlayer)
 				playerRemoved = true
 				turnEnded = true
@@ -368,6 +419,12 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	fmt.Printf("Played: %v\n", card)
 
+	if s.Logger != nil {
+		s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "CardPlayed", map[string]interface{}{
+			"card": card.String(),
+		})
+	}
+
 	// Special handling for Actions
 	if card.Type == domain.CardTypeAction {
 		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
@@ -408,6 +465,13 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	if busted {
 		fmt.Println("BUSTED!")
 		p.CurrentHand.Status = domain.HandStatusBusted
+
+		if s.Logger != nil {
+			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Bust", map[string]interface{}{
+				"hand": s.formatHand(p.CurrentHand),
+			})
+		}
+
 		return
 	} else if flip7 {
 		fmt.Println("FLIP 7!")
@@ -417,6 +481,13 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 
 		// Flip 7 ends the round immediately
 		s.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
+
+		if s.Logger != nil {
+			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Flip7", map[string]interface{}{
+				"banked_score": score,
+				"total_score":  p.TotalScore,
+			})
+		}
 
 		return
 	}
