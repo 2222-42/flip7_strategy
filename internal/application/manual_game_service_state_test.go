@@ -27,6 +27,7 @@ func TestGameStateSerialization(t *testing.T) {
 	p1.TotalScore = 50
 	p1.CurrentHand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: 5})
 	game.CurrentRound.ActivePlayers = []*domain.Player{p1, p2} // Both active
+	game.CurrentRound.CurrentTurnIndex = 1                     // Set to test serialization
 
 	// 2. Create service and use public RelinkPointers via SaveState/LoadState
 	reader := bufio.NewReader(strings.NewReader(""))
@@ -71,6 +72,11 @@ func TestGameStateSerialization(t *testing.T) {
 	}
 	if loadedGame.Players[0] != loadedGame.CurrentRound.Dealer {
 		t.Errorf("Dealer should point to Game player")
+	}
+
+	// Verify CurrentTurnIndex is preserved
+	if game.CurrentRound.CurrentTurnIndex != loadedGame.CurrentRound.CurrentTurnIndex {
+		t.Errorf("CurrentTurnIndex mismatch: got %d, want %d", loadedGame.CurrentRound.CurrentTurnIndex, game.CurrentRound.CurrentTurnIndex)
 	}
 }
 

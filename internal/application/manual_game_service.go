@@ -152,6 +152,12 @@ func (s *ManualGameService) playRound() {
 
 		currentPlayer := s.Game.CurrentRound.ActivePlayers[s.Game.CurrentRound.CurrentTurnIndex]
 
+		// Skip players who are not active (busted, stayed, frozen)
+		if currentPlayer.CurrentHand.Status != domain.HandStatusActive {
+			s.Game.CurrentRound.CurrentTurnIndex++
+			continue
+		}
+
 		// Show Save Code
 		code, err := s.SaveState()
 		if err == nil {
@@ -204,8 +210,9 @@ func (s *ManualGameService) playRound() {
 				// Process card
 				s.processCard(currentPlayer, card)
 
-				// Check if player was removed (Bust, Flip7, Freeze)
-				// processCard calls RemoveActivePlayer in those cases.
+				// Check if player was removed (Flip7, Freeze)
+				// processCard calls RemoveActivePlayer for Freeze actions (and Flip7 ends the round).
+				// Note: Busted players are NOT removed from ActivePlayers; only their status changes.
 				// We need to check if currentPlayer is still in ActivePlayers.
 				isActive := false
 				for _, p := range s.Game.CurrentRound.ActivePlayers {
@@ -232,8 +239,8 @@ func (s *ManualGameService) playRound() {
 		if !playerRemoved {
 			s.Game.CurrentRound.CurrentTurnIndex++
 		}
-		// If player removed, the next player slides into the current index, so we don't increment.
-		// But we must ensure we wrap around if we were at the end (handled at start of loop).
+		// If player removed (Freeze action), the next player slides into the current index, so we don't increment.
+		// Busted players remain in ActivePlayers but are skipped via the status check at the start of the loop.
 	}
 }
 
@@ -548,6 +555,11 @@ func (s *ManualGameService) LoadState(encoded string) error {
 	var wrapper gameStateWrapper
 	if err := json.Unmarshal(decoded, &wrapper); err != nil {
 		return fmt.Errorf("failed to parse game state: %v", err)
+	}
+
+	// Validate that the game state is not nil
+	if wrapper.Game == nil {
+		return fmt.Errorf("invalid save code: game state is missing")
 	}
 
 	// Validate that the loaded game is resumable
