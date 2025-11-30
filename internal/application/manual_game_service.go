@@ -558,7 +558,7 @@ func (s *ManualGameService) LoadState(encoded string) error {
 		return fmt.Errorf("cannot resume: the current round in the loaded game is already ended")
 	}
 
-	s.relinkPointers(wrapper.Game, wrapper.UserControlledIDs)
+	s.RelinkPointers(wrapper.Game, wrapper.UserControlledIDs)
 	s.Game = wrapper.Game
 	return nil
 }
@@ -611,8 +611,4 @@ func (s *ManualGameService) RelinkPointers(g *domain.Game, userControlledIDs []s
 			g.Winners[i] = existing
 		}
 	}
-}
-
-func (s *ManualGameService) relinkPointers(g *domain.Game, userControlledIDs []string) {
-	s.RelinkPointers(g, userControlledIDs)
 }
