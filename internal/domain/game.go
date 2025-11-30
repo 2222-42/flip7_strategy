@@ -17,13 +17,14 @@ const WinningThreshold = 200
 
 // Round represents a single round of play.
 type Round struct {
-	ID            uuid.UUID      `json:"id"`
-	Dealer        *Player        `json:"dealer"`
-	Players       []*Player      `json:"players"`
-	Deck          *Deck          `json:"deck"`
-	ActivePlayers []*Player      `json:"active_players"`
-	IsEnded       bool           `json:"is_ended"`
-	EndReason     RoundEndReason `json:"end_reason"`
+	ID               uuid.UUID      `json:"id"`
+	Dealer           *Player        `json:"dealer"`
+	Players          []*Player      `json:"players"`
+	Deck             *Deck          `json:"deck"`
+	ActivePlayers    []*Player      `json:"active_players"`
+	CurrentTurnIndex int            `json:"current_turn_index"`
+	IsEnded          bool           `json:"is_ended"`
+	EndReason        RoundEndReason `json:"end_reason"`
 }
 
 // NewRound creates a new round.
@@ -55,11 +56,12 @@ func NewRound(players []*Player, dealer *Player, deck *Deck) *Round {
 	}
 
 	return &Round{
-		ID:            uuid.New(),
-		Dealer:        dealer,
-		Players:       players,
-		Deck:          deck,
-		ActivePlayers: active,
+		ID:               uuid.New(),
+		Dealer:           dealer,
+		Players:          players,
+		Deck:             deck,
+		ActivePlayers:    active,
+		CurrentTurnIndex: 0, // Explicitly start at first player
 	}
 }
 
@@ -113,9 +115,18 @@ func (g *Game) DetermineWinners() []*Player {
 }
 
 // RemoveActivePlayer removes a player from the active players list.
+// If the removed player is before the current turn index, the index is adjusted.
 func (r *Round) RemoveActivePlayer(p *Player) {
 	for i, ap := range r.ActivePlayers {
 		if ap.ID == p.ID {
+			// If we're removing a player before the current turn index,
+			// decrement the index to account for the shift.
+			// If i == CurrentTurnIndex (removing current player), don't decrement
+			// because the next player slides into the current position.
+			// If i > CurrentTurnIndex, no adjustment needed.
+			if i < r.CurrentTurnIndex {
+				r.CurrentTurnIndex--
+			}
 			r.ActivePlayers = append(r.ActivePlayers[:i], r.ActivePlayers[i+1:]...)
 			return
 		}

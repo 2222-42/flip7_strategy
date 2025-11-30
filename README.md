@@ -63,6 +63,7 @@ Select Mode:
 
 - **Automatic Play**: Runs a single game with verbose logging. Great for understanding the game flow and debugging.
 - **Participating**: You take the seat of the third player. Follow the prompts to `hit`, `stay`, or choose targets for action cards.
+    - **Save/Resume**: A "Save Code" is displayed at the start of each turn. Copy this code. To resume later, select "Participating" mode and paste the code when prompted.
 - **Counting**: Runs 1,000 silent games and outputs the win statistics. Use this to see which strategy is currently the strongest.
 - **Optimize Heuristic Strategy**: Finds the optimal stopping threshold for the Heuristic strategy.
 - **Single Player Optimization**: Calculates average and median rounds to reach 200 points for each strategy.
