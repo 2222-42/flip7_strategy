@@ -48,7 +48,7 @@ func (sc *ScoreCalculator) Compute(hand *PlayerHand) PointValue {
 		bonus = 15
 	}
 
-	total := (baseSum+addModifiers)*multiplier + bonus
+	total := (baseSum * multiplier) + addModifiers + bonus
 
 	return PointValue{
 		BaseSum:   baseSum,

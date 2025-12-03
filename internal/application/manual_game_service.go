@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -21,7 +22,7 @@ const FlipThreeCardCount = 3
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`
 	UserControlledIDs []string     `json:"user_controlled_ids"` // IDs of players with nil strategy
-	GameID            string       `json:"game_id"`              // GameID for logging continuity
+	GameID            string       `json:"game_id"`             // GameID for logging continuity
 }
 
 // ManualGameService handles the manual mode where the user inputs game events.
@@ -49,10 +50,23 @@ func (s *ManualGameService) Run() {
 }
 
 func (s *ManualGameService) setupPlayers() {
-	fmt.Println("Do you want to resume a game? (Enter save code or press Enter to start new)")
-	fmt.Print("Save Code: ")
-	saveCode, _ := s.Reader.ReadString('\n')
-	saveCode = strings.TrimSpace(saveCode)
+	fmt.Println("Do you want to resume a game? (Enter save code, file path, or press Enter to start new)")
+	fmt.Print("Save Code / File Path: ")
+	input, _ := s.Reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	saveCode := input
+	// Check if input is a file (and not just a short string that happens to match a filename, though unlikely for a JWT)
+	// We check if the file exists and is readable.
+	if len(input) > 0 && len(input) < 255 { // Basic length check to avoid stat-ing huge tokens
+		if _, err := os.Stat(input); err == nil {
+			content, err := os.ReadFile(input)
+			if err == nil {
+				saveCode = strings.TrimSpace(string(content))
+				fmt.Printf("Read save code from file: %s\n", input)
+			}
+		}
+	}
 
 	if saveCode != "" {
 		if err := s.LoadState(saveCode); err != nil {
@@ -181,6 +195,19 @@ func (s *ManualGameService) playRound() {
 			break
 		}
 
+		// Robustness check: Ensure there is at least one player with Active status
+		hasActive := false
+		for _, p := range s.Game.CurrentRound.ActivePlayers {
+			if p.CurrentHand.Status == domain.HandStatusActive {
+				hasActive = true
+				break
+			}
+		}
+		if !hasActive {
+			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
+			break
+		}
+
 		// Ensure index is valid
 		if s.Game.CurrentRound.CurrentTurnIndex >= len(s.Game.CurrentRound.ActivePlayers) {
 			s.Game.CurrentRound.CurrentTurnIndex = 0
@@ -190,11 +217,9 @@ func (s *ManualGameService) playRound() {
 
 		// Skip players who are not active (busted, stayed, frozen)
 		if currentPlayer.CurrentHand.Status != domain.HandStatusActive {
-			s.Game.CurrentRound.CurrentTurnIndex++
-			// Wrap around if needed
-			if s.Game.CurrentRound.CurrentTurnIndex >= len(s.Game.CurrentRound.ActivePlayers) {
-				s.Game.CurrentRound.CurrentTurnIndex = 0
-			}
+			// Fix: Remove inactive player from ActivePlayers list to prevent infinite loops
+			// and ensure the round can end (RoundEndReasonNoActivePlayers).
+			s.Game.CurrentRound.RemoveActivePlayer(currentPlayer)
 			continue
 		}
 
@@ -466,6 +491,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	if busted {
 		fmt.Println("BUSTED!")
 		p.CurrentHand.Status = domain.HandStatusBusted
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 
 		if s.Logger != nil {
 			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Bust", map[string]interface{}{
@@ -534,6 +560,8 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 // This function prompts the user to input 3 cards for the target player and processes
 // each card according to these rules. The loop exits early if the target busts.
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
+	var queuedActions []domain.Card
+
 	for i := 0; i < FlipThreeCardCount; i++ {
 		// Exit early if target is no longer active (busted or other status change)
 		if target.CurrentHand.Status != domain.HandStatusActive {
@@ -559,18 +587,32 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 
 		// Handle cards drawn during Flip Three according to game rules:
 		// - Number/Modifier/Second Chance: Process immediately via processCard
-		// - Flip Three/Freeze: Queue for later resolution (added to hand, resolved manually after)
-		//
-		// Note: In Manual Mode, we simplify by adding queued actions to the hand with a warning.
-		// The user is expected to track and resolve these actions manually after the 3 draws.
-		// A full implementation would maintain a separate action queue and auto-resolve.
+		// - Flip Three/Freeze: Queue for later resolution (resolved manually after)
 		if card.Type == domain.CardTypeAction && (card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze) {
-			fmt.Println("Action card drawn during Flip Three! Per game rules, this should be queued.")
-			fmt.Println("(Manual Mode: Card added to hand. Resolve manually after completing all 3 draws.)")
-			target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
+			fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
+			queuedActions = append(queuedActions, card)
 		} else {
 			// Process number cards, modifiers, and Second Chance immediately
 			s.processCard(target, card)
+		}
+	}
+
+	// After the loop, if the player is still active, resolve queued actions
+	if target.CurrentHand.Status == domain.HandStatusActive {
+		for _, card := range queuedActions {
+			fmt.Printf("Resolving queued action: %s\n", card)
+			s.processCard(target, card)
+			// If an action causes a status change (e.g. chained Flip Three -> Bust), stop resolving
+			if target.CurrentHand.Status != domain.HandStatusActive {
+				break
+			}
+		}
+	} else {
+		// If player busted during the draws, we must ensure the queued action cards are at least added to the hand
+		// so the final hand state is correct (they were drawn, after all).
+		// processCard adds to hand, but we skipped calling it.
+		for _, card := range queuedActions {
+			target.CurrentHand.AddCard(card)
 		}
 	}
 }
