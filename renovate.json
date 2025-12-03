@@ -17,7 +17,8 @@
     },
     "patch": {
         "minimumReleaseAge": "7 days",
-        "automerge": true
+        "automerge": true,
+        "platformAutomerge": true
     },
     "schedule": [
         "every weekend"
