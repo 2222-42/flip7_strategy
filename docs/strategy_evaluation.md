@@ -176,3 +176,51 @@ Target selection optimization has significantly shifted the balance of power.
 2.  **ExpectedValue (Risk 0.70)** is the **strongest 1v1 strategy**, holding a slight edge over Adaptive in head-to-head matchups. It also dominates 5-player games.
 3.  **Heuristic-27 (Risk 0.65)** is a strong contender, excelling in 4-player games.
 4.  **Optimization Impact**: Dynamic risk thresholds make Adaptive highly competitive, but Expected Value's consistency makes it a formidable opponent in 1v1.
+
+## Latest Simulation Run (Fix Multiply 2 Logic)
+
+**Date**: 2025-12-04
+**Changes**: Fixed `multiply_2` logic to correctly multiply only the sum of number cards, not additive modifiers.
+
+### 1. Single Player Optimization
+
+| Strategy | Avg Rounds | Median Rounds |
+| :--- | :--- | :--- |
+| **Adaptive** | **9.74** | **9.00** |
+| ExpectedValue | 9.87 | 10.00 |
+| Probabilistic | 9.96 | 10.00 |
+| Heuristic-27 | 10.00 | 10.00 |
+| Aggressive | 11.26 | 11.00 |
+| Cautious | 12.22 | 12.00 |
+
+### 2. Multiplayer Evaluation (Win Rates)
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adaptive** | **20.05%** | **20.95%** | **22.25%** | **22.90%** |
+| ExpectedValue | 17.60% | 18.20% | 19.20% | 18.75% |
+| Heuristic-27 | 18.00% | 16.90% | 17.30% | 19.00% |
+| Probabilistic | 16.90% | 19.40% | 19.35% | 17.45% |
+| Aggressive | 17.00% | 16.65% | 15.95% | 16.90% |
+| Cautious | 10.45% | 7.90% | 5.95% | 5.00% |
+
+### 3. Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 37.25% | 27.45% | 29.70% | 25.15% | 22.85% |
+| **Aggressive** | 62.75% | - | 42.85% | 41.80% | 41.35% | 40.55% |
+| **Probabilistic** | 72.55% | 57.15% | - | 47.65% | 45.85% | 49.55% |
+| **Heuristic-27** | 70.30% | 58.20% | 52.35% | - | 46.55% | 48.95% |
+| **ExpectedValue** | 74.85% | 58.65% | 54.15% | 53.45% | - | **51.10%** |
+| **Adaptive** | 77.15% | 59.45% | 50.45% | 51.05% | 48.90% | - |
+
+*Note: Adaptive wins against Probabilistic (50.45%) and Heuristic (51.05%), but loses to ExpectedValue (48.90%).*
+
+### Conclusion
+
+The fix to `multiply_2` logic has slightly adjusted the win rates but the overall trends remain consistent.
+- **Adaptive Strategy** remains the dominant force in multiplayer games.
+- **Expected Value Strategy** continues to be the strongest 1v1 opponent, maintaining a slight edge over Adaptive.
