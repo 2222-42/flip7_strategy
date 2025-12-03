@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -21,7 +22,7 @@ const FlipThreeCardCount = 3
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`
 	UserControlledIDs []string     `json:"user_controlled_ids"` // IDs of players with nil strategy
-	GameID            string       `json:"game_id"`              // GameID for logging continuity
+	GameID            string       `json:"game_id"`             // GameID for logging continuity
 }
 
 // ManualGameService handles the manual mode where the user inputs game events.
@@ -49,10 +50,23 @@ func (s *ManualGameService) Run() {
 }
 
 func (s *ManualGameService) setupPlayers() {
-	fmt.Println("Do you want to resume a game? (Enter save code or press Enter to start new)")
-	fmt.Print("Save Code: ")
-	saveCode, _ := s.Reader.ReadString('\n')
-	saveCode = strings.TrimSpace(saveCode)
+	fmt.Println("Do you want to resume a game? (Enter save code, file path, or press Enter to start new)")
+	fmt.Print("Save Code / File Path: ")
+	input, _ := s.Reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	saveCode := input
+	// Check if input is a file (and not just a short string that happens to match a filename, though unlikely for a JWT)
+	// We check if the file exists and is readable.
+	if len(input) > 0 && len(input) < 255 { // Basic length check to avoid stat-ing huge tokens
+		if _, err := os.Stat(input); err == nil {
+			content, err := os.ReadFile(input)
+			if err == nil {
+				saveCode = strings.TrimSpace(string(content))
+				fmt.Printf("Read save code from file: %s\n", input)
+			}
+		}
+	}
 
 	if saveCode != "" {
 		if err := s.LoadState(saveCode); err != nil {
@@ -177,6 +191,19 @@ func (s *ManualGameService) playRound() {
 
 	for !s.Game.CurrentRound.IsEnded {
 		if len(s.Game.CurrentRound.ActivePlayers) == 0 {
+			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
+			break
+		}
+
+		// Robustness check: Ensure there is at least one player with Active status
+		hasActive := false
+		for _, p := range s.Game.CurrentRound.ActivePlayers {
+			if p.CurrentHand.Status == domain.HandStatusActive {
+				hasActive = true
+				break
+			}
+		}
+		if !hasActive {
 			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
 			break
 		}
@@ -466,6 +493,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	if busted {
 		fmt.Println("BUSTED!")
 		p.CurrentHand.Status = domain.HandStatusBusted
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 
 		if s.Logger != nil {
 			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Bust", map[string]interface{}{
