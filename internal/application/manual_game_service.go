@@ -16,8 +16,6 @@ import (
 	"flip7_strategy/internal/domain/strategy"
 )
 
-const FlipThreeCardCount = 3
-
 // gameStateWrapper wraps the game state with metadata for serialization.
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`

@@ -214,8 +214,8 @@ func TestFlipThreeExecutor_Flip7Achievement(t *testing.T) {
 	player := domain.NewPlayer("TestPlayer", nil)
 	player.StartNewRound()
 	
-	// Add 6 number cards to hand
-	for i := 0; i < 6; i++ {
+	// Add 6 unique number cards to hand (values 1-6)
+	for i := 1; i <= 6; i++ {
 		player.CurrentHand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(i)})
 	}
 

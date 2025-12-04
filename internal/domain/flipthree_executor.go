@@ -61,7 +61,7 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 	
 	queuedActions := []Card{}
 	
-	for i := 0; i < 3; i++ {
+	for i := 0; i < FlipThreeCardCount; i++ {
 		// Exit early if target is no longer active
 		if target.CurrentHand.Status != HandStatusActive {
 			break
