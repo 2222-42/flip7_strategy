@@ -12,6 +12,64 @@ type GameService struct {
 	secondChanceHandler *domain.SecondChanceHandler
 }
 
+// gameServiceFlipThreeCardSource implements FlipThreeCardSource for AI mode.
+type gameServiceFlipThreeCardSource struct {
+	service *GameService
+}
+
+func (gs *gameServiceFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+	return gs.service.DrawCard()
+}
+
+// gameServiceFlipThreeCardProcessor implements FlipThreeCardProcessor for AI mode.
+type gameServiceFlipThreeCardProcessor struct {
+	service *GameService
+}
+
+func (gp *gameServiceFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+	gp.service.ProcessCardDraw(target, card)
+	return nil
+}
+
+func (gp *gameServiceFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+	gp.service.ResolveAction(target, card)
+	return nil
+}
+
+// gameServiceFlipThreeLogger implements FlipThreeLogger for AI mode.
+type gameServiceFlipThreeLogger struct {
+	service *GameService
+}
+
+func (gl *gameServiceFlipThreeLogger) LogStart(target *domain.Player) {
+	gl.service.log("--- %s must draw 3 cards! ---\n", target.Name)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogCardDraw(target *domain.Player, cardNum int, card domain.Card) {
+	gl.service.log("%s forced draw (%d/3): %v\n", target.Name, cardNum, card)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogActionQueued(card domain.Card) {
+	gl.service.log("Action %s queued for after Flip Three.\n", card.ActionType)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogResolvingQueued(card domain.Card) {
+	gl.service.log("Resolving queued action %s...\n", card.ActionType)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogFlip7(target *domain.Player, score int) {
+	gl.service.log("%s FLIP 7! Bonus!\n", target.Name)
+	gl.service.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogEnd(target *domain.Player) {
+	gl.service.log("--- End of Flip Three for %s ---\n", target.Name)
+}
+
+func (gl *gameServiceFlipThreeLogger) LogError(msg string) {
+	gl.service.log("%s\n", msg)
+}
+
 // strategyTargetSelector wraps a Strategy to implement TargetSelector interface.
 type strategyTargetSelector struct {
 	strategy domain.Strategy
@@ -280,81 +338,11 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 
 // ExecuteFlipThree handles the specific logic of Flip Three (nested actions).
 func (s *GameService) ExecuteFlipThree(target *domain.Player) {
-	round := s.Game.CurrentRound
-	s.log("--- %s must draw 3 cards! ---\n", target.Name)
-
-	pendingActions := []domain.Card{}
-
-	for i := 0; i < 3; i++ {
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fCard, err := s.DrawCard()
-		if err != nil {
-			s.log("%s\n", "Deck and discard pile empty during Flip Three!")
-			round.IsEnded = true
-			round.EndReason = domain.RoundEndReasonAborted
-			return
-		}
-		s.log("%s forced draw (%d/3): %v\n", target.Name, i+1, fCard)
-
-		// Handle Second Chance logic specifically for Flip Three
-		// Second Chance cards are added to the player's hand and resolved immediately.
-		// Flip Three and Freeze action cards are queued and resolved after all three cards are drawn.
-
-		if fCard.Type == domain.CardTypeAction {
-			if fCard.ActionType == domain.ActionSecondChance {
-				// Add to hand immediately (handling passing logic if duplicate)
-				s.ProcessCardDraw(target, fCard)
-				// If busted/flip7 happened in ProcessCardDraw (unlikely for SecondChance itself, but ProcessCardDraw handles AddCard), loop breaks.
-				if target.CurrentHand.Status != domain.HandStatusActive {
-					break
-				}
-				continue
-			} else if fCard.ActionType == domain.ActionFreeze || fCard.ActionType == domain.ActionFlipThree {
-				// Queue it
-				s.log("Action %s queued for after Flip Three.\n", fCard.ActionType)
-				pendingActions = append(pendingActions, fCard)
-
-				// Add to hand without triggering immediate resolution (since we resolve later)
-				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, fCard)
-
-				// Check Flip 7 with this new card?
-				// "Flip 7" check is in AddCard.
-				// Let's manually check Flip 7 since we bypassed ProcessCardDraw.
-				totalCards := len(target.CurrentHand.NumberCards)
-				if totalCards >= 7 {
-					s.log("%s FLIP 7! Bonus!\n", target.Name)
-					target.CurrentHand.Status = domain.HandStatusStayed
-					score := target.BankCurrentHand()
-					s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-					s.Game.CurrentRound.RemoveActivePlayer(target)
-					round.EndReason = domain.RoundEndReasonFlip7
-					round.IsEnded = true
-					return
-				}
-				continue
-			}
-		}
-
-		// Normal card (Number/Modifier)
-		s.ProcessCardDraw(target, fCard)
-		if round.IsEnded || target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-	}
-
-	// Resolve Pending Actions if still active
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, actionCard := range pendingActions {
-			s.log("Resolving queued action %s...\n", actionCard.ActionType)
-			s.ResolveAction(target, actionCard)
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
-			}
-		}
-	}
-
-	s.log("--- End of Flip Three for %s ---\n", target.Name)
+	// Create FlipThree executor with AI mode implementations
+	source := &gameServiceFlipThreeCardSource{service: s}
+	processor := &gameServiceFlipThreeCardProcessor{service: s}
+	logger := &gameServiceFlipThreeLogger{service: s}
+	
+	executor := domain.NewFlipThreeExecutor(source, processor, logger)
+	executor.Execute(target, s.Game.CurrentRound)
 }

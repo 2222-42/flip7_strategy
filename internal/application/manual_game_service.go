@@ -34,6 +34,81 @@ type ManualGameService struct {
 	secondChanceHandler *domain.SecondChanceHandler
 }
 
+// manualFlipThreeCardSource implements FlipThreeCardSource for manual mode.
+type manualFlipThreeCardSource struct {
+	service *ManualGameService
+}
+
+func (ms *manualFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+	// Keep retrying until valid card is entered
+	for {
+		fmt.Printf("Input card %d/3 for %s: ", cardNum, target.Name)
+		input, _ := ms.service.Reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		
+		card, err := ms.service.parseInput(input)
+		if err != nil {
+			fmt.Printf("Invalid input: %v. Try again.\n", err)
+			continue // Retry
+		}
+		
+		if err := ms.service.removeCardFromDeck(card); err != nil {
+			fmt.Printf("Error: %v. Try again.\n", err)
+			continue // Retry
+		}
+		
+		return card, nil
+	}
+}
+
+// manualFlipThreeCardProcessor implements FlipThreeCardProcessor for manual mode.
+type manualFlipThreeCardProcessor struct {
+	service *ManualGameService
+}
+
+func (mp *manualFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+	mp.service.processCard(target, card)
+	return nil
+}
+
+func (mp *manualFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+	mp.service.processCard(target, card)
+	return nil
+}
+
+// manualFlipThreeLogger implements FlipThreeLogger for manual mode.
+type manualFlipThreeLogger struct{}
+
+func (ml *manualFlipThreeLogger) LogStart(target *domain.Player) {
+	fmt.Printf("\n--- %s must draw 3 cards! ---\n", target.Name)
+}
+
+func (ml *manualFlipThreeLogger) LogCardDraw(target *domain.Player, cardNum int, card domain.Card) {
+	// Card draw is already prompted in GetNextCard, so minimal logging here
+	fmt.Printf("Drew: %v\n", card)
+}
+
+func (ml *manualFlipThreeLogger) LogActionQueued(card domain.Card) {
+	fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
+}
+
+func (ml *manualFlipThreeLogger) LogResolvingQueued(card domain.Card) {
+	fmt.Printf("Resolving queued action: %s\n", card)
+}
+
+func (ml *manualFlipThreeLogger) LogFlip7(target *domain.Player, score int) {
+	fmt.Println("FLIP 7!")
+	fmt.Printf("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
+}
+
+func (ml *manualFlipThreeLogger) LogEnd(target *domain.Player) {
+	fmt.Printf("--- End of Flip Three for %s ---\n", target.Name)
+}
+
+func (ml *manualFlipThreeLogger) LogError(msg string) {
+	fmt.Printf("Error: %s. Try again.\n", msg)
+}
+
 // SelectTarget implements domain.TargetSelector interface for manual mode.
 func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	return s.promptForTarget(actionType, candidates, actor)
@@ -622,61 +697,13 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 // This function prompts the user to input 3 cards for the target player and processes
 // each card according to these rules. The loop exits early if the target busts.
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
-	var queuedActions []domain.Card
-
-	for i := 0; i < FlipThreeCardCount; i++ {
-		// Exit early if target is no longer active (busted or other status change)
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
-		input, _ := s.Reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		card, err := s.parseInput(input)
-		if err != nil {
-			fmt.Printf("Invalid input: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		if err := s.removeCardFromDeck(card); err != nil {
-			fmt.Printf("Error: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		// Handle cards drawn during Flip Three according to game rules:
-		// - Number/Modifier/Second Chance: Process immediately via processCard
-		// - Flip Three/Freeze: Queue for later resolution (resolved manually after)
-		if card.Type == domain.CardTypeAction && (card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze) {
-			fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
-			queuedActions = append(queuedActions, card)
-		} else {
-			// Process number cards, modifiers, and Second Chance immediately
-			s.processCard(target, card)
-		}
-	}
-
-	// After the loop, if the player is still active, resolve queued actions
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, card := range queuedActions {
-			fmt.Printf("Resolving queued action: %s\n", card)
-			s.processCard(target, card)
-			// If an action causes a status change (e.g. chained Flip Three -> Bust), stop resolving
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
-			}
-		}
-	} else {
-		// If player busted during the draws, we must ensure the queued action cards are at least added to the hand
-		// so the final hand state is correct (they were drawn, after all).
-		// processCard adds to hand, but we skipped calling it.
-		for _, card := range queuedActions {
-			target.CurrentHand.AddCard(card)
-		}
-	}
+	// Create FlipThree executor with manual mode implementations
+	source := &manualFlipThreeCardSource{service: s}
+	processor := &manualFlipThreeCardProcessor{service: s}
+	logger := &manualFlipThreeLogger{}
+	
+	executor := domain.NewFlipThreeExecutor(source, processor, logger)
+	executor.Execute(target, s.Game.CurrentRound)
 }
 
 func (s *ManualGameService) formatHand(h *domain.PlayerHand) string {
