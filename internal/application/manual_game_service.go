@@ -36,7 +36,7 @@ type ManualGameService struct {
 
 // SelectTarget implements domain.TargetSelector interface for manual mode.
 func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
-	return s.promptForTarget(actor)
+	return s.promptForTarget(actionType, candidates, actor)
 }
 
 // NewManualGameService creates a new ManualGameService.
@@ -470,11 +470,12 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		
 		if result.ShouldDiscard {
 			fmt.Println("All other active players already have a Second Chance. Discarding card.")
-			// Add to discard pile (would need to track this in manual mode)
+			fmt.Println("(Remove the Second Chance card from play)")
 			return
 		} else if result.PassToPlayer != nil {
 			fmt.Printf("%s already has a Second Chance! Giving it to %s\n", p.Name, result.PassToPlayer.Name)
-			// Add the card to the target player's hand
+			fmt.Printf("(Give the Second Chance card to %s)\n", result.PassToPlayer.Name)
+			// Add the card to the target player's hand for tracking
 			result.PassToPlayer.CurrentHand.ActionCards = append(result.PassToPlayer.CurrentHand.ActionCards, card)
 			return
 		}
@@ -485,7 +486,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	if card.Type == domain.CardTypeAction {
 		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
 			// Step 1: Prompt the drawer (p) to choose a target player for the action
-			target := s.promptForTarget(p)
+			target := s.promptForTarget(card.ActionType, s.Game.CurrentRound.ActivePlayers, p)
 			if target == nil {
 				fmt.Println("No target selected (or invalid). Action cancelled (card still played).")
 			} else {
@@ -519,10 +520,16 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	busted, flip7, discarded := p.CurrentHand.AddCard(card)
 
 	// Handle discarded cards (e.g., from Second Chance usage)
-	// Note: In manual mode, we don't track a discard pile separately,
-	// but we should at least acknowledge them
+	// In manual mode, inform the user to physically remove these cards
 	if len(discarded) > 0 {
-		fmt.Printf("Cards discarded: %d\n", len(discarded))
+		fmt.Printf("Second Chance used! Remove %d card(s) from play: ", len(discarded))
+		for i, c := range discarded {
+			if i > 0 {
+				fmt.Print(", ")
+			}
+			fmt.Print(c.String())
+		}
+		fmt.Println()
 	}
 
 	if busted {
@@ -567,14 +574,25 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 // Strategic reasons for self-targeting:
 // - Freeze: Bank current points immediately (defensive play)
 // - Flip Three: Force yourself to draw 3 cards (aggressive play when needing points)
-func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
-	candidates := s.Game.CurrentRound.ActivePlayers
+// - GiveSecondChance: Pass Second Chance to a specific player
+func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	if len(candidates) == 0 {
 		fmt.Println("No active players to target.")
 		return nil
 	}
 
-	fmt.Println("Select Target:")
+	// Display appropriate message based on action type
+	switch actionType {
+	case domain.ActionFreeze:
+		fmt.Println("Select target to Freeze:")
+	case domain.ActionFlipThree:
+		fmt.Println("Select target for Flip Three:")
+	case domain.ActionGiveSecondChance:
+		fmt.Println("Select player to give Second Chance to:")
+	default:
+		fmt.Println("Select Target:")
+	}
+
 	for i, c := range candidates {
 		fmt.Printf("%d. %s (Score: %d)\n", i+1, c.Name, c.TotalScore)
 	}
