@@ -238,6 +238,11 @@ func (s *ManualGameService) playRound() {
 			})
 		}
 
+		// Show current hand score before input
+		calc := domain.NewScoreCalculator()
+		score := calc.Compute(currentPlayer.CurrentHand)
+		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(currentPlayer.CurrentHand), score.Total)
+
 		s.analyzeState(currentPlayer)
 
 		// Input loop for this turn (single action)
