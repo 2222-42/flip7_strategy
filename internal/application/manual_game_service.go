@@ -231,12 +231,18 @@ func (s *ManualGameService) playRound() {
 
 		fmt.Printf("\n>>> Turn: %s (Score: %d)\n", currentPlayer.Name, currentPlayer.TotalScore)
 
+		calc := domain.NewScoreCalculator()
+		score := calc.Compute(currentPlayer.CurrentHand)
+
 		if s.Logger != nil {
 			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), currentPlayer.ID.String(), "TurnStart", map[string]interface{}{
 				"score":      currentPlayer.TotalScore,
-				"hand_score": domain.NewScoreCalculator().Compute(currentPlayer.CurrentHand).Total,
+				"hand_score": score.Total,
 			})
 		}
+
+		// Show current hand score before input
+		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(currentPlayer.CurrentHand), score.Total)
 
 		s.analyzeState(currentPlayer)
 
