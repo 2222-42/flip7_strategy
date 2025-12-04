@@ -7,12 +7,26 @@ import (
 
 // GameService orchestrates the game.
 type GameService struct {
-	Game   *domain.Game
-	Silent bool
+	Game                *domain.Game
+	Silent              bool
+	secondChanceHandler *domain.SecondChanceHandler
+}
+
+// strategyTargetSelector wraps a Strategy to implement TargetSelector interface.
+type strategyTargetSelector struct {
+	strategy domain.Strategy
+	deck     *domain.Deck
+}
+
+func (sts *strategyTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+	return sts.strategy.ChooseTarget(actionType, candidates, actor)
 }
 
 func NewGameService(game *domain.Game) *GameService {
-	return &GameService{Game: game}
+	return &GameService{
+		Game:                game,
+		secondChanceHandler: domain.NewSecondChanceHandler(),
+	}
 }
 
 func (s *GameService) log(format string, a ...interface{}) {
@@ -170,54 +184,29 @@ func (s *GameService) PlayRound() {
 func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 	round := s.Game.CurrentRound
 
-	// Check for Second Chance Passing Logic BEFORE adding to hand?
+	// Check for Second Chance Passing Logic BEFORE adding to hand
 	// Rule: "If they are dealt another Second Chance card, they then choose another active player to give it to."
 	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
-		if p.CurrentHand.HasSecondChance() {
-			s.log("%s already has a Second Chance! Must pass it.\n", p.Name)
-			// Choose target to give
-			candidates := []*domain.Player{}
-			for _, ap := range round.ActivePlayers {
-				if ap.ID != p.ID {
-					candidates = append(candidates, ap)
-				}
-			}
-
-			if len(candidates) > 0 {
-				// Check if all candidates already have a Second Chance card
-				allHaveSecondChance := true
-				for _, candidate := range candidates {
-					if !candidate.CurrentHand.HasSecondChance() {
-						allHaveSecondChance = false
-						break
-					}
-				}
-				if allHaveSecondChance {
-					s.log("All other active players already have a Second Chance. Discarding card.\n")
-					// Discard
-					s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-				} else {
-					if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
-						ds.SetDeck(round.Deck)
-					}
-					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
-					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
-					// Add to target's hand (recursive check? "If everyone else already has one, then discard")
-					// Let's assume we just add it to target. If target has one, they keep two?
-					// Rule says: "If everyone else already has one, then discard the Second Chance card."
-					// This implies we should check if target has one.
-					// But simpler: just give it.
-					// Wait, if target has one, do they pass it too? "If they are dealt..."
-					// Receiving from another player is not "dealt" from deck, but let's assume they just keep it.
-					target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
-				}
-			} else {
-				s.log("%s\n", "No active players to give Second Chance. Discarding.")
-				// Discard
-				s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-			}
-			return // Done processing this card for this player
+		// Create a selector for the strategy
+		selector := &strategyTargetSelector{strategy: p.Strategy, deck: round.Deck}
+		
+		// Set deck for strategies that need it
+		if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
+			ds.SetDeck(round.Deck)
 		}
+		
+		result := s.secondChanceHandler.HandleSecondChance(p, round.ActivePlayers, selector)
+		
+		if result.ShouldDiscard {
+			s.log("All other active players already have a Second Chance. Discarding card.\n")
+			s.Game.DiscardPile = append(s.Game.DiscardPile, card)
+			return
+		} else if result.PassToPlayer != nil {
+			s.log("%s gives Second Chance to %s\n", p.Name, result.PassToPlayer.Name)
+			result.PassToPlayer.CurrentHand.ActionCards = append(result.PassToPlayer.CurrentHand.ActionCards, card)
+			return
+		}
+		// Otherwise, fall through to add to player's hand
 	}
 
 	busted, flip7, discarded := p.CurrentHand.AddCard(card)

@@ -27,18 +27,25 @@ type gameStateWrapper struct {
 
 // ManualGameService handles the manual mode where the user inputs game events.
 type ManualGameService struct {
-	Game   *domain.Game
-	Reader *bufio.Reader
-	Logger logger.GameLogger
-	GameID string
+	Game                *domain.Game
+	Reader              *bufio.Reader
+	Logger              logger.GameLogger
+	GameID              string
+	secondChanceHandler *domain.SecondChanceHandler
+}
+
+// SelectTarget implements domain.TargetSelector interface for manual mode.
+func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+	return s.promptForTarget(actor)
 }
 
 // NewManualGameService creates a new ManualGameService.
 func NewManualGameService(reader *bufio.Reader, logger logger.GameLogger) *ManualGameService {
 	return &ManualGameService{
-		Reader: reader,
-		Logger: logger,
-		GameID: fmt.Sprintf("game_%d", time.Now().Unix()),
+		Reader:              reader,
+		Logger:              logger,
+		GameID:              fmt.Sprintf("game_%d", time.Now().Unix()),
+		secondChanceHandler: domain.NewSecondChanceHandler(),
 	}
 }
 
@@ -457,7 +464,24 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		})
 	}
 
-	// Special handling for Actions
+	// Special handling for Second Chance BEFORE adding to hand
+	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
+		result := s.secondChanceHandler.HandleSecondChance(p, s.Game.CurrentRound.ActivePlayers, s)
+		
+		if result.ShouldDiscard {
+			fmt.Println("All other active players already have a Second Chance. Discarding card.")
+			// Add to discard pile (would need to track this in manual mode)
+			return
+		} else if result.PassToPlayer != nil {
+			fmt.Printf("%s already has a Second Chance! Giving it to %s\n", p.Name, result.PassToPlayer.Name)
+			// Add the card to the target player's hand
+			result.PassToPlayer.CurrentHand.ActionCards = append(result.PassToPlayer.CurrentHand.ActionCards, card)
+			return
+		}
+		// Otherwise, fall through to add to player's hand
+	}
+
+	// Special handling for Actions (Freeze and Flip Three)
 	if card.Type == domain.CardTypeAction {
 		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
 			// Step 1: Prompt the drawer (p) to choose a target player for the action
@@ -491,8 +515,15 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		return
 	}
 
-	// Add card to hand logic
-	busted, flip7, _ := p.CurrentHand.AddCard(card)
+	// Add card to hand logic (for Number and Modifier cards)
+	busted, flip7, discarded := p.CurrentHand.AddCard(card)
+
+	// Handle discarded cards (e.g., from Second Chance usage)
+	// Note: In manual mode, we don't track a discard pile separately,
+	// but we should at least acknowledge them
+	if len(discarded) > 0 {
+		fmt.Printf("Cards discarded: %d\n", len(discarded))
+	}
 
 	if busted {
 		fmt.Println("BUSTED!")
@@ -512,7 +543,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		score := p.BankCurrentHand()
 		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
 
-		// Flip 7 ends the round immediately
+		// Flip 7 ends the round immediately AND removes the player from active players
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 		s.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
 
 		if s.Logger != nil {
