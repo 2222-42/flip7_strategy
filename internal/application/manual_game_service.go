@@ -445,7 +445,7 @@ func (s *ManualGameService) GetCard() (domain.Card, error) {
 
 // SelectTarget implements rules.TargetSelector for Manual Mode.
 func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, source *domain.Player) *domain.Player {
-	return s.promptForTarget(source)
+	return s.promptForTarget(candidates)
 }
 
 // processCard handles the logic of adding a card to a player's hand and resolving its effects.
@@ -509,13 +509,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	}
 }
 
-// promptForTarget prompts the player to select a target for an action card.
-// Valid targets include all active players, including the player themselves.
-// Strategic reasons for self-targeting:
-// - Freeze: Bank current points immediately (defensive play)
-// - Flip Three: Force yourself to draw 3 cards (aggressive play when needing points)
-func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
-	candidates := s.Game.CurrentRound.ActivePlayers
+// promptForTarget prompts the player to select a target from the provided candidates.
+func (s *ManualGameService) promptForTarget(candidates []*domain.Player) *domain.Player {
 	if len(candidates) == 0 {
 		fmt.Println("No active players to target.")
 		return nil

@@ -208,9 +208,6 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 		s.log("%s FLIP 7! Bonus!\n", p.Name)
 		s.log("%s banked %d points! Total: %d\n", p.Name, result.BankedScore, p.TotalScore)
 	}
-	if result.Stayed && !result.Flip7 { // Explicit stay handled in loop, but Flip7 causes stay
-		// Flip7 logged above
-	}
 
 	// Handle Actions
 	if result.ActionType != "" {
