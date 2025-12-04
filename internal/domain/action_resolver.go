@@ -65,5 +65,9 @@ func (sch *SecondChanceHandler) HandleSecondChance(
 
 	// Select a target to give the card to
 	target := selector.SelectTarget(ActionGiveSecondChance, candidates, p)
+	if target == nil {
+		// If no target selected, discard the card
+		return SecondChanceResult{ShouldDiscard: true}
+	}
 	return SecondChanceResult{PassToPlayer: target}
 }

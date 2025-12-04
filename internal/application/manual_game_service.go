@@ -577,7 +577,13 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 // - GiveSecondChance: Pass Second Chance to a specific player
 func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	if len(candidates) == 0 {
-		fmt.Println("No active players to target.")
+		// Provide action-specific error messages
+		switch actionType {
+		case domain.ActionGiveSecondChance:
+			fmt.Println("No valid targets available: All other players already have a Second Chance card.")
+		default:
+			fmt.Println("No active players available to target.")
+		}
 		return nil
 	}
 

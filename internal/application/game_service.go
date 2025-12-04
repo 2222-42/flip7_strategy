@@ -19,7 +19,21 @@ type strategyTargetSelector struct {
 }
 
 func (sts *strategyTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
-	return sts.strategy.ChooseTarget(actionType, candidates, actor)
+	target := sts.strategy.ChooseTarget(actionType, candidates, actor)
+	
+	// Validate that the target is in the candidates list
+	if target != nil {
+		for _, candidate := range candidates {
+			if candidate.ID == target.ID {
+				return target
+			}
+		}
+		// Target not in candidates - return first candidate as fallback
+		if len(candidates) > 0 {
+			return candidates[0]
+		}
+	}
+	return nil
 }
 
 func NewGameService(game *domain.Game) *GameService {
