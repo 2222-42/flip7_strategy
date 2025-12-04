@@ -2,6 +2,7 @@ package application
 
 import (
 	"flip7_strategy/internal/domain"
+	"flip7_strategy/internal/domain/rules"
 	"fmt"
 )
 
@@ -90,6 +91,22 @@ func (s *GameService) DrawCard() (domain.Card, error) {
 	return round.Deck.Draw()
 }
 
+// GetCard implements rules.CardSource
+func (s *GameService) GetCard() (domain.Card, error) {
+	return s.DrawCard()
+}
+
+// SelectTarget implements rules.TargetSelector
+func (s *GameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, source *domain.Player) *domain.Player {
+	if ds, ok := source.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
+		ds.SetDeck(s.Game.CurrentRound.Deck)
+	}
+	target := source.Strategy.ChooseTarget(actionType, candidates, source)
+	// Log the choice
+	s.log("%s targets %s with %s\n", source.Name, target.Name, actionType)
+	return target
+}
+
 // PlayRound handles a single round.
 func (s *GameService) PlayRound() {
 	round := s.Game.CurrentRound
@@ -168,188 +185,77 @@ func (s *GameService) PlayRound() {
 
 // ProcessCardDraw handles adding a card and resolving its effects.
 func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
-	round := s.Game.CurrentRound
+	engine := rules.NewGameEngine()
+	result, err := engine.ApplyCard(s.Game.CurrentRound, p, card, s)
+	if err != nil {
+		s.log("Error applying card: %v\n", err)
+		return
+	}
 
-	// Check for Second Chance Passing Logic BEFORE adding to hand?
-	// Rule: "If they are dealt another Second Chance card, they then choose another active player to give it to."
-	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
-		if p.CurrentHand.HasSecondChance() {
-			s.log("%s already has a Second Chance! Must pass it.\n", p.Name)
-			// Choose target to give
-			candidates := []*domain.Player{}
-			for _, ap := range round.ActivePlayers {
-				if ap.ID != p.ID {
-					candidates = append(candidates, ap)
-				}
-			}
-
-			if len(candidates) > 0 {
-				// Check if all candidates already have a Second Chance card
-				allHaveSecondChance := true
-				for _, candidate := range candidates {
-					if !candidate.CurrentHand.HasSecondChance() {
-						allHaveSecondChance = false
-						break
-					}
-				}
-				if allHaveSecondChance {
-					s.log("All other active players already have a Second Chance. Discarding card.\n")
-					// Discard
-					s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-				} else {
-					if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
-						ds.SetDeck(round.Deck)
-					}
-					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
-					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
-					// Add to target's hand (recursive check? "If everyone else already has one, then discard")
-					// Let's assume we just add it to target. If target has one, they keep two?
-					// Rule says: "If everyone else already has one, then discard the Second Chance card."
-					// This implies we should check if target has one.
-					// But simpler: just give it.
-					// Wait, if target has one, do they pass it too? "If they are dealt..."
-					// Receiving from another player is not "dealt" from deck, but let's assume they just keep it.
-					target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
-				}
-			} else {
-				s.log("%s\n", "No active players to give Second Chance. Discarding.")
-				// Discard
-				s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-			}
-			return // Done processing this card for this player
+	// Log Discards
+	if len(result.Discarded) > 0 {
+		for _, d := range result.Discarded {
+			s.log("Discarded: %v\n", d)
+			s.Game.DiscardPile = append(s.Game.DiscardPile, d)
 		}
 	}
 
-	busted, flip7, discarded := p.CurrentHand.AddCard(card)
-	if len(discarded) > 0 {
-		s.Game.DiscardPile = append(s.Game.DiscardPile, discarded...)
-	}
-
-	if busted {
+	// Log Outcomes
+	if result.Busted {
 		s.log("%s BUSTED!\n", p.Name)
-		s.Game.CurrentRound.RemoveActivePlayer(p)
-	} else if flip7 {
-		s.log("%s FLIP 7! Bonus!\n", p.Name)
-		p.CurrentHand.Status = domain.HandStatusStayed
-		score := p.BankCurrentHand()
-		s.log("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
-		s.Game.CurrentRound.RemoveActivePlayer(p)
-		round.EndReason = domain.RoundEndReasonFlip7
-		round.IsEnded = true
-	} else {
-		// Resolve Immediate Actions
-		if card.Type == domain.CardTypeAction {
-			s.ResolveAction(p, card)
-		}
 	}
-}
+	if result.Flip7 {
+		s.log("%s FLIP 7! Bonus!\n", p.Name)
+		s.log("%s banked %d points! Total: %d\n", p.Name, result.BankedScore, p.TotalScore)
+	}
+	if result.Stayed && !result.Flip7 { // Explicit stay handled in loop, but Flip7 causes stay
+		// Flip7 logged above
+	}
 
-// ResolveAction handles the effect of an action card.
-func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
-	round := s.Game.CurrentRound
-
-	switch card.ActionType {
-	case domain.ActionFreeze:
-		candidates := []*domain.Player{}
-		candidates = append(candidates, round.ActivePlayers...)
-		if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
-			ds.SetDeck(round.Deck)
+	// Handle Actions
+	if result.ActionType != "" {
+		switch result.ActionType {
+		case domain.ActionGiveSecondChance:
+			s.log("%s gives Second Chance to %s\n", p.Name, result.Target.Name)
+		case domain.ActionFreeze:
+			s.log("%s uses Freeze on %s\n", p.Name, result.Target.Name)
+			s.log("%s banked %d points! Total: %d\n", result.Target.Name, result.Target.TotalScore, result.Target.TotalScore) // Score already updated in engine
+		case domain.ActionFlipThree:
+			s.log("%s uses Flip Three on %s\n", p.Name, result.Target.Name)
+			s.ExecuteFlipThree(result.Target)
 		}
-		target := p.Strategy.ChooseTarget(domain.ActionFreeze, candidates, p)
-		s.log("%s uses Freeze on %s\n", p.Name, target.Name)
-
-		target.CurrentHand.Status = domain.HandStatusFrozen
-		score := target.BankCurrentHand()
-		s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-		s.Game.CurrentRound.RemoveActivePlayer(target)
-
-	case domain.ActionFlipThree:
-		candidates := []*domain.Player{}
-		candidates = append(candidates, round.ActivePlayers...)
-		if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
-			ds.SetDeck(round.Deck)
-		}
-		target := p.Strategy.ChooseTarget(domain.ActionFlipThree, candidates, p)
-		s.log("%s uses Flip Three on %s\n", p.Name, target.Name)
-		s.ExecuteFlipThree(target)
 	}
 }
 
 // ExecuteFlipThree handles the specific logic of Flip Three (nested actions).
 func (s *GameService) ExecuteFlipThree(target *domain.Player) {
-	round := s.Game.CurrentRound
 	s.log("--- %s must draw 3 cards! ---\n", target.Name)
-
-	pendingActions := []domain.Card{}
-
-	for i := 0; i < 3; i++ {
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fCard, err := s.DrawCard()
-		if err != nil {
-			s.log("%s\n", "Deck and discard pile empty during Flip Three!")
-			round.IsEnded = true
-			round.EndReason = domain.RoundEndReasonAborted
-			return
-		}
-		s.log("%s forced draw (%d/3): %v\n", target.Name, i+1, fCard)
-
-		// Handle Second Chance logic specifically for Flip Three
-		// Second Chance cards are added to the player's hand and resolved immediately.
-		// Flip Three and Freeze action cards are queued and resolved after all three cards are drawn.
-
-		if fCard.Type == domain.CardTypeAction {
-			if fCard.ActionType == domain.ActionSecondChance {
-				// Add to hand immediately (handling passing logic if duplicate)
-				s.ProcessCardDraw(target, fCard)
-				// If busted/flip7 happened in ProcessCardDraw (unlikely for SecondChance itself, but ProcessCardDraw handles AddCard), loop breaks.
-				if target.CurrentHand.Status != domain.HandStatusActive {
-					break
-				}
-				continue
-			} else if fCard.ActionType == domain.ActionFreeze || fCard.ActionType == domain.ActionFlipThree {
-				// Queue it
-				s.log("Action %s queued for after Flip Three.\n", fCard.ActionType)
-				pendingActions = append(pendingActions, fCard)
-
-				// Add to hand without triggering immediate resolution (since we resolve later)
-				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, fCard)
-
-				// Check Flip 7 with this new card?
-				// "Flip 7" check is in AddCard.
-				// Let's manually check Flip 7 since we bypassed ProcessCardDraw.
-				totalCards := len(target.CurrentHand.NumberCards)
-				if totalCards >= 7 {
-					s.log("%s FLIP 7! Bonus!\n", target.Name)
-					target.CurrentHand.Status = domain.HandStatusStayed
-					score := target.BankCurrentHand()
-					s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-					s.Game.CurrentRound.RemoveActivePlayer(target)
-					round.EndReason = domain.RoundEndReasonFlip7
-					round.IsEnded = true
-					return
-				}
-				continue
-			}
-		}
-
-		// Normal card (Number/Modifier)
-		s.ProcessCardDraw(target, fCard)
-		if round.IsEnded || target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
+	engine := rules.NewGameEngine()
+	results, err := engine.ExecuteFlipThree(s.Game.CurrentRound, target, s, s)
+	if err != nil {
+		s.log("Error executing Flip Three: %v\n", err)
+		return
 	}
 
-	// Resolve Pending Actions if still active
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, actionCard := range pendingActions {
-			s.log("Resolving queued action %s...\n", actionCard.ActionType)
-			s.ResolveAction(target, actionCard)
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
-			}
+	for i, res := range results {
+		s.log("%s forced draw (%d/3) result: Busted=%v, Action=%s\n", target.Name, i+1, res.Busted, res.ActionType)
+		if len(res.Discarded) > 0 {
+			s.Game.DiscardPile = append(s.Game.DiscardPile, res.Discarded...)
+		}
+		if res.Busted {
+			s.log("%s BUSTED in Flip Three!\n", target.Name)
+		}
+		if res.Flip7 {
+			s.log("%s FLIP 7 in Flip Three!\n", target.Name)
+			s.log("%s banked %d points! Total: %d\n", target.Name, res.BankedScore, target.TotalScore)
+		}
+		if res.ActionType == domain.ActionFreeze && res.Target != nil {
+			s.log("Freeze resolved on %s\n", res.Target.Name)
+			s.log("%s banked %d points! Total: %d\n", res.Target.Name, res.Target.TotalScore, res.Target.TotalScore)
+		}
+		if res.ActionType == domain.ActionFlipThree && res.Target != nil {
+			s.log("Nested Flip Three on %s\n", res.Target.Name)
+			s.ExecuteFlipThree(res.Target) // Recursive
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 
 	"flip7_strategy/internal/domain"
 	"flip7_strategy/internal/domain/logger"
+	"flip7_strategy/internal/domain/rules"
 	"flip7_strategy/internal/domain/strategy"
 )
 
@@ -424,30 +425,30 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 	return fmt.Errorf("card not found in deck (already drawn?)")
 }
 
+// GetCard implements rules.CardSource for Manual Mode (used during Flip Three).
+func (s *ManualGameService) GetCard() (domain.Card, error) {
+	fmt.Print("Input card (0-12, +N, x2, F, T, C): ")
+	input, err := s.Reader.ReadString('\n')
+	if err != nil {
+		return domain.Card{}, err
+	}
+	input = strings.TrimSpace(input)
+	card, err := s.parseInput(input)
+	if err != nil {
+		return domain.Card{}, err
+	}
+	if err := s.removeCardFromDeck(card); err != nil {
+		return domain.Card{}, err
+	}
+	return card, nil
+}
+
+// SelectTarget implements rules.TargetSelector for Manual Mode.
+func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, source *domain.Player) *domain.Player {
+	return s.promptForTarget(source)
+}
+
 // processCard handles the logic of adding a card to a player's hand and resolving its effects.
-//
-// Action Card Processing Order (based on domain model - docs/domain_model.md):
-//
-//   - Flip Three & Freeze: The player who DRAWS the card chooses a target player.
-//     The action effect is applied to the TARGET player, then the card is added to the DRAWER's hand.
-//     This order is important because:
-//     1. The drawer must choose a target before knowing the full outcome
-//     2. The target processes the effect (e.g., draws 3 cards for Flip Three)
-//     3. Only after resolution does the drawer add the action card to their own hand
-//
-//   - Second Chance: Added to drawer's hand immediately. Per domain model (lines 173-175),
-//     if the drawer already has one, they must pass it to another active player (or discard
-//     if no valid target).
-//     NOTE: In Manual Mode, this passing logic is NOT automated. When a player draws a Second
-//     Chance and already has one, the user should track this situation and manually decide which
-//     active player receives it, then input the Second Chance card during that target player's
-//     turn instead of the original drawer's turn.
-//
-//   - During Flip Three: Per domain model (lines 169-172), if the target draws another Flip Three
-//     or Freeze while drawing their 3 cards, those action cards are queued and resolved AFTER all
-//     3 cards are drawn (if the target hasn't busted). See resolveFlipThreeManual for details.
-//
-// Number/Modifier Cards: Added to the player's hand immediately, checked for bust/flip7.
 func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	fmt.Printf("Played: %v\n", card)
 
@@ -457,77 +458,55 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		})
 	}
 
-	// Special handling for Actions
-	if card.Type == domain.CardTypeAction {
-		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
-			// Step 1: Prompt the drawer (p) to choose a target player for the action
-			target := s.promptForTarget(p)
-			if target == nil {
-				fmt.Println("No target selected (or invalid). Action cancelled (card still played).")
-			} else {
-				// Step 2: Apply the action effect to the TARGET player
-				switch card.ActionType {
-				case domain.ActionFreeze:
-					fmt.Printf("Freezing %s!\n", target.Name)
-					target.CurrentHand.Status = domain.HandStatusFrozen
-					score := target.BankCurrentHand()
-					fmt.Printf("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-					s.Game.CurrentRound.RemoveActivePlayer(target)
-				case domain.ActionFlipThree:
-					fmt.Printf("Flip Three on %s! They must draw 3 cards.\n", target.Name)
-					s.resolveFlipThreeManual(target)
-				}
-			}
-		}
-		// Step 3: Add the action card to the DRAWER's (p) hand after effect resolution
-		// Note: Per issue #17, action cards (Flip Three, Freeze) end the turn after resolution.
-		p.CurrentHand.AddCard(card)
-
-		// Show current hand score
-		calc := domain.NewScoreCalculator()
-		score := calc.Compute(p.CurrentHand)
-		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
-
+	engine := rules.NewGameEngine()
+	result, err := engine.ApplyCard(s.Game.CurrentRound, p, card, s)
+	if err != nil {
+		fmt.Printf("Error applying card: %v\n", err)
 		return
 	}
 
-	// Add card to hand logic
-	busted, flip7, _ := p.CurrentHand.AddCard(card)
+	// Log Discards
+	if len(result.Discarded) > 0 {
+		for _, d := range result.Discarded {
+			fmt.Printf("Discarded: %v\n", d)
+		}
+	}
 
-	if busted {
+	// Log Outcomes
+	if result.Busted {
 		fmt.Println("BUSTED!")
-		p.CurrentHand.Status = domain.HandStatusBusted
-		s.Game.CurrentRound.RemoveActivePlayer(p)
-
 		if s.Logger != nil {
 			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Bust", map[string]interface{}{
 				"hand": s.formatHand(p.CurrentHand),
 			})
 		}
-
-		return
-	} else if flip7 {
+	} else if result.Flip7 {
 		fmt.Println("FLIP 7!")
-		p.CurrentHand.Status = domain.HandStatusStayed
-		score := p.BankCurrentHand()
-		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
-
-		// Flip 7 ends the round immediately
-		s.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
-
+		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, result.BankedScore, p.TotalScore)
 		if s.Logger != nil {
 			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), p.ID.String(), "Flip7", map[string]interface{}{
-				"banked_score": score,
+				"banked_score": result.BankedScore,
 				"total_score":  p.TotalScore,
 			})
 		}
-
-		return
+	} else {
+		// Show current hand score (if not busted/flip7)
+		calc := domain.NewScoreCalculator()
+		score := calc.Compute(p.CurrentHand)
+		fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
 	}
-	// Show current hand score
-	calc := domain.NewScoreCalculator()
-	score := calc.Compute(p.CurrentHand)
-	fmt.Printf("Current Hand: %s | Score: %d\n", s.formatHand(p.CurrentHand), score.Total)
+
+	// Handle Actions
+	if result.ActionType != "" {
+		switch result.ActionType {
+		case domain.ActionFreeze:
+			fmt.Printf("Freezing %s!\n", result.Target.Name)
+			fmt.Printf("%s banked %d points! Total: %d\n", result.Target.Name, result.Target.TotalScore, result.Target.TotalScore) // Score updated in engine
+		case domain.ActionFlipThree:
+			fmt.Printf("Flip Three on %s! They must draw 3 cards.\n", result.Target.Name)
+			s.resolveFlipThreeManual(result.Target)
+		}
+	}
 }
 
 // promptForTarget prompts the player to select a target for an action card.
@@ -557,68 +536,41 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 }
 
 // resolveFlipThreeManual handles the Flip Three action effect on the target player.
-// Per domain model (docs/domain_model.md lines 169-172), Flip Three forces the target to:
-//  1. Draw 3 cards one by one
-//  2. If Second Chance is drawn: Process normally (set aside/use if duplicate drawn)
-//  3. If Flip Three or Freeze is drawn: Queue it and resolve AFTER all 3 cards are drawn
-//     (only if the target hasn't busted)
-//
-// This function prompts the user to input 3 cards for the target player and processes
-// each card according to these rules. The loop exits early if the target busts.
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
-	var queuedActions []domain.Card
-
-	for i := 0; i < FlipThreeCardCount; i++ {
-		// Exit early if target is no longer active (busted or other status change)
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
-		input, _ := s.Reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		card, err := s.parseInput(input)
-		if err != nil {
-			fmt.Printf("Invalid input: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		if err := s.removeCardFromDeck(card); err != nil {
-			fmt.Printf("Error: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		// Handle cards drawn during Flip Three according to game rules:
-		// - Number/Modifier/Second Chance: Process immediately via processCard
-		// - Flip Three/Freeze: Queue for later resolution (resolved manually after)
-		if card.Type == domain.CardTypeAction && (card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze) {
-			fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
-			queuedActions = append(queuedActions, card)
-		} else {
-			// Process number cards, modifiers, and Second Chance immediately
-			s.processCard(target, card)
-		}
+	engine := rules.NewGameEngine()
+	results, err := engine.ExecuteFlipThree(s.Game.CurrentRound, target, s, s)
+	if err != nil {
+		fmt.Printf("Error executing Flip Three: %v\n", err)
+		return
 	}
 
-	// After the loop, if the player is still active, resolve queued actions
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, card := range queuedActions {
-			fmt.Printf("Resolving queued action: %s\n", card)
-			s.processCard(target, card)
-			// If an action causes a status change (e.g. chained Flip Three -> Bust), stop resolving
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
+	for i, res := range results {
+		fmt.Printf("%s forced draw (%d/3) result: Busted=%v, Action=%s\n", target.Name, i+1, res.Busted, res.ActionType)
+		if res.Busted {
+			fmt.Printf("%s BUSTED in Flip Three!\n", target.Name)
+			if s.Logger != nil {
+				s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), target.ID.String(), "Bust", map[string]interface{}{
+					"hand": s.formatHand(target.CurrentHand),
+				})
 			}
 		}
-	} else {
-		// If player busted during the draws, we must ensure the queued action cards are at least added to the hand
-		// so the final hand state is correct (they were drawn, after all).
-		// processCard adds to hand, but we skipped calling it.
-		for _, card := range queuedActions {
-			target.CurrentHand.AddCard(card)
+		if res.Flip7 {
+			fmt.Printf("%s FLIP 7 in Flip Three!\n", target.Name)
+			fmt.Printf("%s banked %d points! Total: %d\n", target.Name, res.BankedScore, target.TotalScore)
+			if s.Logger != nil {
+				s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), target.ID.String(), "Flip7", map[string]interface{}{
+					"banked_score": res.BankedScore,
+					"total_score":  target.TotalScore,
+				})
+			}
+		}
+		if res.ActionType == domain.ActionFreeze && res.Target != nil {
+			fmt.Printf("Freeze resolved on %s\n", res.Target.Name)
+			fmt.Printf("%s banked %d points! Total: %d\n", res.Target.Name, res.Target.TotalScore, res.Target.TotalScore)
+		}
+		if res.ActionType == domain.ActionFlipThree && res.Target != nil {
+			fmt.Printf("Nested Flip Three on %s\n", res.Target.Name)
+			s.resolveFlipThreeManual(res.Target) // Recursive
 		}
 	}
 }

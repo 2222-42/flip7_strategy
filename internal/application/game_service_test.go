@@ -91,7 +91,7 @@ func TestFreezeLogic(t *testing.T) {
 
 	// Resolve Freeze on P1
 	card := domain.Card{Type: domain.CardTypeAction, ActionType: domain.ActionFreeze}
-	svc.ResolveAction(p1, card)
+	svc.ProcessCardDraw(p1, card)
 
 	if p1.CurrentHand.Status != domain.HandStatusFrozen {
 		t.Errorf("Expected P1 to be Frozen, got %s", p1.CurrentHand.Status)
