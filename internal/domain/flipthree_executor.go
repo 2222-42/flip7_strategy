@@ -97,10 +97,18 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 				fte.logger.LogActionQueued(card)
 				queuedActions = append(queuedActions, card)
 				
-				// Add action card to hand (without triggering immediate resolution)
+				// Add action card to hand WITHOUT triggering immediate resolution.
+				// We bypass AddCard() here intentionally because:
+				// 1. We don't want to trigger the action immediately (it's queued)
+				// 2. AddCard() would check for Flip 7, which we do manually below
+				// 3. Action cards don't add to NumberCards, so no bust risk
 				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
 				
-				// Check for Flip 7 (7 unique number cards)
+				// Manually check for Flip 7 (7 unique number cards).
+				// We must check here because Flip 7 ends the round immediately,
+				// preventing further card draws during Flip Three.
+				// Note: Action cards don't add to NumberCards, but we check
+				// because the player might have already had 7 number cards.
 				if len(target.CurrentHand.NumberCards) >= 7 {
 					target.CurrentHand.Status = HandStatusStayed
 					score := target.BankCurrentHand()
@@ -115,7 +123,10 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 			}
 		}
 		
-		// Number/Modifier cards: Process immediately
+		// Number/Modifier cards: Process immediately.
+		// Note: ProcessImmediateCard calls the full card processing logic
+		// (ProcessCardDraw in AI mode, processCard in manual mode), which
+		// handles Flip 7 detection automatically via AddCard().
 		if err := fte.cardProcessor.ProcessImmediateCard(target, card); err != nil {
 			fte.logger.LogError(err.Error())
 		}
