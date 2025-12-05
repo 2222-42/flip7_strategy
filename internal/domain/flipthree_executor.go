@@ -153,11 +153,8 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 				break
 			}
 		}
-	} else {
-		// If player busted during draws, ensure queued action cards are in hand
-		// (they were drawn, so they should be tracked)
-		// Note: ActionCards were already added to hand above, so nothing to do here
 	}
+	// Note: If player busted during draws, queued action cards were already added to hand above
 	
 	fte.log("--- End of Flip Three for %s ---", target.Name)
 	return round.IsEnded
