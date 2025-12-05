@@ -74,39 +74,6 @@ func (mp *manualFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Playe
 	return nil
 }
 
-// manualFlipThreeLogger implements FlipThreeLogger for manual mode.
-type manualFlipThreeLogger struct{}
-
-func (ml *manualFlipThreeLogger) LogStart(target *domain.Player) {
-	fmt.Printf("\n--- %s must draw 3 cards! ---\n", target.Name)
-}
-
-func (ml *manualFlipThreeLogger) LogCardDraw(target *domain.Player, cardNum int, card domain.Card) {
-	// Card draw is already prompted in GetNextCard, so minimal logging here
-	fmt.Printf("Drew: %v\n", card)
-}
-
-func (ml *manualFlipThreeLogger) LogActionQueued(card domain.Card) {
-	fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
-}
-
-func (ml *manualFlipThreeLogger) LogResolvingQueued(card domain.Card) {
-	fmt.Printf("Resolving queued action: %s\n", card)
-}
-
-func (ml *manualFlipThreeLogger) LogFlip7(target *domain.Player, score int) {
-	fmt.Println("FLIP 7!")
-	fmt.Printf("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-}
-
-func (ml *manualFlipThreeLogger) LogEnd(target *domain.Player) {
-	fmt.Printf("--- End of Flip Three for %s ---\n", target.Name)
-}
-
-func (ml *manualFlipThreeLogger) LogError(msg string) {
-	fmt.Printf("Error: %s. Try again.\n", msg)
-}
-
 // SelectTarget implements domain.TargetSelector interface for manual mode.
 func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	return s.promptForTarget(actionType, candidates, actor)
@@ -698,7 +665,11 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 	// Create FlipThree executor with manual mode implementations
 	source := &manualFlipThreeCardSource{service: s}
 	processor := &manualFlipThreeCardProcessor{service: s}
-	logger := &manualFlipThreeLogger{}
+	
+	// Create logger function that prints to console
+	logger := func(message string) {
+		fmt.Println(message)
+	}
 	
 	executor := domain.NewFlipThreeExecutor(source, processor, logger)
 	executor.Execute(target, s.Game.CurrentRound)

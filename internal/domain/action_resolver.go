@@ -37,33 +37,20 @@ func (sch *SecondChanceHandler) HandleSecondChance(
 	}
 
 	// Player already has a Second Chance - must pass it to another active player
+	// Filter candidates to only include players who don't already have Second Chance
 	candidates := []*Player{}
 	for _, ap := range activePlayers {
-		if ap.ID != p.ID {
+		if ap.ID != p.ID && !ap.CurrentHand.HasSecondChance() {
 			candidates = append(candidates, ap)
 		}
 	}
 
-	// No other active players - discard
+	// No valid candidates - discard (either no other players or all have Second Chance)
 	if len(candidates) == 0 {
 		return SecondChanceResult{ShouldDiscard: true}
 	}
 
-	// Check if all candidates already have a Second Chance card
-	allHaveSecondChance := true
-	for _, candidate := range candidates {
-		if !candidate.CurrentHand.HasSecondChance() {
-			allHaveSecondChance = false
-			break
-		}
-	}
-
-	// If all have Second Chance, discard
-	if allHaveSecondChance {
-		return SecondChanceResult{ShouldDiscard: true}
-	}
-
-	// Select a target to give the card to
+	// Select a target to give the card to (candidates are already filtered)
 	target := selector.SelectTarget(ActionGiveSecondChance, candidates, p)
 	if target == nil {
 		// If no target selected, discard the card

@@ -8,10 +8,12 @@ import (
 
 // mockTargetSelector is a mock implementation of TargetSelector for testing.
 type mockTargetSelector struct {
-	targetToReturn *domain.Player
+	targetToReturn      *domain.Player
+	candidatesReceived  []*domain.Player
 }
 
 func (m *mockTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+	m.candidatesReceived = candidates
 	return m.targetToReturn
 }
 
@@ -105,5 +107,52 @@ func TestSecondChanceHandler_HandleSecondChance(t *testing.T) {
 				t.Errorf("Expected PassToPlayer to be nil, but it was %v", result.PassToPlayer.Name)
 			}
 		})
+	}
+}
+
+func TestSecondChanceHandler_CandidateFiltering(t *testing.T) {
+	// Test that SecondChanceHandler filters out players who already have Second Chance
+	// before passing candidates to SelectTarget
+	handler := domain.NewSecondChanceHandler()
+	
+	// Create test player who already has Second Chance
+	player := domain.NewPlayer("Player1", nil)
+	player.StartNewRound()
+	player.CurrentHand.ActionCards = append(player.CurrentHand.ActionCards,
+		domain.Card{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance})
+	
+	// Create other players: one with SC, one without
+	player2 := domain.NewPlayer("Player2", nil) // Has Second Chance
+	player2.StartNewRound()
+	player2.CurrentHand.ActionCards = append(player2.CurrentHand.ActionCards,
+		domain.Card{Type: domain.CardTypeAction, ActionType: domain.ActionSecondChance})
+	
+	player3 := domain.NewPlayer("Player3", nil) // Does NOT have Second Chance
+	player3.StartNewRound()
+	
+	activePlayers := []*domain.Player{player, player2, player3}
+	
+	// Create mock selector that will return player3
+	selector := &mockTargetSelector{targetToReturn: player3}
+	
+	// Execute
+	result := handler.HandleSecondChance(player, activePlayers, selector)
+	
+	// Verify that only player3 was passed as a candidate (player2 should be filtered out)
+	if len(selector.candidatesReceived) != 1 {
+		t.Errorf("Expected 1 candidate, got %d", len(selector.candidatesReceived))
+	}
+	
+	if len(selector.candidatesReceived) > 0 && selector.candidatesReceived[0].ID != player3.ID {
+		t.Errorf("Expected candidate to be Player3, got %s", selector.candidatesReceived[0].Name)
+	}
+	
+	// Verify result
+	if result.PassToPlayer == nil {
+		t.Error("Expected PassToPlayer to be set")
+	}
+	
+	if result.PassToPlayer != nil && result.PassToPlayer.ID != player3.ID {
+		t.Errorf("Expected to pass to Player3, got %s", result.PassToPlayer.Name)
 	}
 }

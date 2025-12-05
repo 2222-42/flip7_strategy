@@ -1,5 +1,7 @@
 package domain
 
+import "fmt"
+
 // FlipThreeCardSource provides cards for Flip Three execution.
 // Different implementations exist for AI mode (deck) and manual mode (user input).
 type FlipThreeCardSource interface {
@@ -20,16 +22,9 @@ type FlipThreeCardProcessor interface {
 	ProcessQueuedAction(target *Player, card Card) error
 }
 
-// FlipThreeLogger handles logging during Flip Three execution.
-type FlipThreeLogger interface {
-	LogStart(target *Player)
-	LogCardDraw(target *Player, cardNum int, card Card)
-	LogActionQueued(card Card)
-	LogResolvingQueued(card Card)
-	LogFlip7(target *Player, score int)
-	LogEnd(target *Player)
-	LogError(msg string)
-}
+// FlipThreeLogger is an optional callback for logging during Flip Three execution.
+// If nil, no logging occurs. This decouples the domain from specific logging implementations.
+type FlipThreeLogger func(message string)
 
 // FlipThreeExecutor centralizes the Flip Three execution logic.
 // This eliminates duplication between game_service.go and manual_game_service.go.
@@ -40,11 +35,19 @@ type FlipThreeExecutor struct {
 }
 
 // NewFlipThreeExecutor creates a new FlipThreeExecutor.
+// logger can be nil if no logging is needed.
 func NewFlipThreeExecutor(source FlipThreeCardSource, processor FlipThreeCardProcessor, logger FlipThreeLogger) *FlipThreeExecutor {
 	return &FlipThreeExecutor{
 		cardSource:    source,
 		cardProcessor: processor,
 		logger:        logger,
+	}
+}
+
+// log is a helper to call the logger if it's not nil.
+func (fte *FlipThreeExecutor) log(format string, args ...interface{}) {
+	if fte.logger != nil {
+		fte.logger(fmt.Sprintf(format, args...))
 	}
 }
 
@@ -57,7 +60,7 @@ func NewFlipThreeExecutor(source FlipThreeCardSource, processor FlipThreeCardPro
 // 4. Number/Modifier cards: Process immediately
 // Returns true if the round should end (e.g., Flip 7 achieved).
 func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
-	fte.logger.LogStart(target)
+	fte.log("--- %s must draw 3 cards! ---", target.Name)
 	
 	queuedActions := []Card{}
 	
@@ -70,20 +73,20 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 		// Get the next card
 		card, err := fte.cardSource.GetNextCard(i+1, target)
 		if err != nil {
-			fte.logger.LogError(err.Error())
+			fte.log("Error: %s", err.Error())
 			round.IsEnded = true
 			round.EndReason = RoundEndReasonAborted
 			return true
 		}
 		
-		fte.logger.LogCardDraw(target, i+1, card)
+		fte.log("%s forced draw (%d/3): %v", target.Name, i+1, card)
 		
 		// Handle cards according to Flip Three rules
 		if card.Type == CardTypeAction {
 			if card.ActionType == ActionSecondChance {
 				// Second Chance: Process immediately
 				if err := fte.cardProcessor.ProcessImmediateCard(target, card); err != nil {
-					fte.logger.LogError(err.Error())
+					fte.log("Error: %s", err.Error())
 				}
 				
 				// Check if player became inactive after processing
@@ -94,7 +97,7 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 				
 			} else if card.ActionType == ActionFlipThree || card.ActionType == ActionFreeze {
 				// Flip Three/Freeze: Queue for later
-				fte.logger.LogActionQueued(card)
+				fte.log("Action %s queued for after Flip Three", card.ActionType)
 				queuedActions = append(queuedActions, card)
 				
 				// Add action card to hand WITHOUT triggering immediate resolution.
@@ -112,7 +115,7 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 				if len(target.CurrentHand.NumberCards) >= 7 {
 					target.CurrentHand.Status = HandStatusStayed
 					score := target.BankCurrentHand()
-					fte.logger.LogFlip7(target, score)
+					fte.log("%s FLIP 7! Bonus! Banked %d points! Total: %d", target.Name, score, target.TotalScore)
 					
 					round.RemoveActivePlayer(target)
 					round.EndReason = RoundEndReasonFlip7
@@ -128,7 +131,7 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 		// (ProcessCardDraw in AI mode, processCard in manual mode), which
 		// handles Flip 7 detection automatically via AddCard().
 		if err := fte.cardProcessor.ProcessImmediateCard(target, card); err != nil {
-			fte.logger.LogError(err.Error())
+			fte.log("Error: %s", err.Error())
 		}
 		
 		// Check if round ended or player became inactive
@@ -140,10 +143,10 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 	// Resolve queued actions if player is still active
 	if target.CurrentHand.Status == HandStatusActive {
 		for _, actionCard := range queuedActions {
-			fte.logger.LogResolvingQueued(actionCard)
+			fte.log("Resolving queued action %s...", actionCard.ActionType)
 			
 			if err := fte.cardProcessor.ProcessQueuedAction(target, actionCard); err != nil {
-				fte.logger.LogError(err.Error())
+				fte.log("Error: %s", err.Error())
 			}
 			
 			if target.CurrentHand.Status != HandStatusActive {
@@ -156,6 +159,6 @@ func (fte *FlipThreeExecutor) Execute(target *Player, round *Round) bool {
 		// Note: ActionCards were already added to hand above, so nothing to do here
 	}
 	
-	fte.logger.LogEnd(target)
+	fte.log("--- End of Flip Three for %s ---", target.Name)
 	return round.IsEnded
 }

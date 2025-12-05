@@ -36,40 +36,6 @@ func (gp *gameServiceFlipThreeCardProcessor) ProcessQueuedAction(target *domain.
 	return nil
 }
 
-// gameServiceFlipThreeLogger implements FlipThreeLogger for AI mode.
-type gameServiceFlipThreeLogger struct {
-	service *GameService
-}
-
-func (gl *gameServiceFlipThreeLogger) LogStart(target *domain.Player) {
-	gl.service.log("--- %s must draw 3 cards! ---\n", target.Name)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogCardDraw(target *domain.Player, cardNum int, card domain.Card) {
-	gl.service.log("%s forced draw (%d/3): %v\n", target.Name, cardNum, card)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogActionQueued(card domain.Card) {
-	gl.service.log("Action %s queued for after Flip Three.\n", card.ActionType)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogResolvingQueued(card domain.Card) {
-	gl.service.log("Resolving queued action %s...\n", card.ActionType)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogFlip7(target *domain.Player, score int) {
-	gl.service.log("%s FLIP 7! Bonus!\n", target.Name)
-	gl.service.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogEnd(target *domain.Player) {
-	gl.service.log("--- End of Flip Three for %s ---\n", target.Name)
-}
-
-func (gl *gameServiceFlipThreeLogger) LogError(msg string) {
-	gl.service.log("%s\n", msg)
-}
-
 // strategyTargetSelector wraps a Strategy to implement TargetSelector interface.
 type strategyTargetSelector struct {
 	strategy domain.Strategy
@@ -341,7 +307,14 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 	// Create FlipThree executor with AI mode implementations
 	source := &gameServiceFlipThreeCardSource{service: s}
 	processor := &gameServiceFlipThreeCardProcessor{service: s}
-	logger := &gameServiceFlipThreeLogger{service: s}
+	
+	// Create logger function that uses the service's log method
+	var logger domain.FlipThreeLogger
+	if !s.Silent {
+		logger = func(message string) {
+			s.log("%s\n", message)
+		}
+	}
 	
 	executor := domain.NewFlipThreeExecutor(source, processor, logger)
 	executor.Execute(target, s.Game.CurrentRound)
