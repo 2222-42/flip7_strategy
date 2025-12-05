@@ -44,7 +44,7 @@ type strategyTargetSelector struct {
 
 func (sts *strategyTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	target := sts.strategy.ChooseTarget(actionType, candidates, actor)
-	
+
 	// Validate that the target is in the candidates list
 	if target != nil {
 		for _, candidate := range candidates {
@@ -227,14 +227,14 @@ func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
 		// Create a selector for the strategy
 		selector := &strategyTargetSelector{strategy: p.Strategy, deck: round.Deck}
-		
+
 		// Set deck for strategies that need it
 		if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
 			ds.SetDeck(round.Deck)
 		}
-		
+
 		result := s.secondChanceHandler.HandleSecondChance(p, round.ActivePlayers, selector)
-		
+
 		if result.ShouldDiscard {
 			s.log("All other active players already have a Second Chance. Discarding card.\n")
 			s.Game.DiscardPile = append(s.Game.DiscardPile, card)
@@ -307,7 +307,7 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 	// Create FlipThree executor with AI mode implementations
 	source := &gameServiceFlipThreeCardSource{service: s}
 	processor := &gameServiceFlipThreeCardProcessor{service: s}
-	
+
 	// Create logger function that uses the service's log method
 	var logger domain.FlipThreeLogger
 	if !s.Silent {
@@ -315,7 +315,7 @@ func (s *GameService) ExecuteFlipThree(target *domain.Player) {
 			s.log("%s\n", message)
 		}
 	}
-	
+
 	executor := domain.NewFlipThreeExecutor(source, processor, logger)
 	executor.Execute(target, s.Game.CurrentRound)
 }
