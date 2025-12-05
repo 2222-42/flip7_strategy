@@ -445,6 +445,14 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 		return fmt.Errorf("no active round/deck")
 	}
 	deck := s.Game.CurrentRound.Deck
+	
+	// For number cards, check RemainingCounts first for efficiency
+	if card.Type == domain.CardTypeNumber {
+		if count, exists := deck.RemainingCounts[card.Value]; !exists || count <= 0 {
+			return fmt.Errorf("card not found in deck (already drawn?)")
+		}
+	}
+	
 	// Find and remove card from deck.Cards
 	for i, c := range deck.Cards {
 		match := false
