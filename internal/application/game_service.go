@@ -7,12 +7,64 @@ import (
 
 // GameService orchestrates the game.
 type GameService struct {
-	Game   *domain.Game
-	Silent bool
+	Game                *domain.Game
+	Silent              bool
+	secondChanceHandler *domain.SecondChanceHandler
+}
+
+// gameServiceFlipThreeCardSource implements FlipThreeCardSource for AI mode.
+type gameServiceFlipThreeCardSource struct {
+	service *GameService
+}
+
+func (gs *gameServiceFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+	return gs.service.DrawCard()
+}
+
+// gameServiceFlipThreeCardProcessor implements FlipThreeCardProcessor for AI mode.
+type gameServiceFlipThreeCardProcessor struct {
+	service *GameService
+}
+
+func (gp *gameServiceFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+	gp.service.ProcessCardDraw(target, card)
+	return nil
+}
+
+func (gp *gameServiceFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+	gp.service.ResolveAction(target, card)
+	return nil
+}
+
+// strategyTargetSelector wraps a Strategy to implement TargetSelector interface.
+type strategyTargetSelector struct {
+	strategy domain.Strategy
+	deck     *domain.Deck
+}
+
+func (sts *strategyTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+	target := sts.strategy.ChooseTarget(actionType, candidates, actor)
+	
+	// Validate that the target is in the candidates list
+	if target != nil {
+		for _, candidate := range candidates {
+			if candidate.ID == target.ID {
+				return target
+			}
+		}
+		// Target not in candidates - return first candidate as fallback
+		if len(candidates) > 0 {
+			return candidates[0]
+		}
+	}
+	return nil
 }
 
 func NewGameService(game *domain.Game) *GameService {
-	return &GameService{Game: game}
+	return &GameService{
+		Game:                game,
+		secondChanceHandler: domain.NewSecondChanceHandler(),
+	}
 }
 
 func (s *GameService) log(format string, a ...interface{}) {
@@ -170,54 +222,29 @@ func (s *GameService) PlayRound() {
 func (s *GameService) ProcessCardDraw(p *domain.Player, card domain.Card) {
 	round := s.Game.CurrentRound
 
-	// Check for Second Chance Passing Logic BEFORE adding to hand?
+	// Check for Second Chance Passing Logic BEFORE adding to hand
 	// Rule: "If they are dealt another Second Chance card, they then choose another active player to give it to."
 	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
-		if p.CurrentHand.HasSecondChance() {
-			s.log("%s already has a Second Chance! Must pass it.\n", p.Name)
-			// Choose target to give
-			candidates := []*domain.Player{}
-			for _, ap := range round.ActivePlayers {
-				if ap.ID != p.ID {
-					candidates = append(candidates, ap)
-				}
-			}
-
-			if len(candidates) > 0 {
-				// Check if all candidates already have a Second Chance card
-				allHaveSecondChance := true
-				for _, candidate := range candidates {
-					if !candidate.CurrentHand.HasSecondChance() {
-						allHaveSecondChance = false
-						break
-					}
-				}
-				if allHaveSecondChance {
-					s.log("All other active players already have a Second Chance. Discarding card.\n")
-					// Discard
-					s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-				} else {
-					if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
-						ds.SetDeck(round.Deck)
-					}
-					target := p.Strategy.ChooseTarget(domain.ActionGiveSecondChance, candidates, p)
-					s.log("%s gives Second Chance to %s\n", p.Name, target.Name)
-					// Add to target's hand (recursive check? "If everyone else already has one, then discard")
-					// Let's assume we just add it to target. If target has one, they keep two?
-					// Rule says: "If everyone else already has one, then discard the Second Chance card."
-					// This implies we should check if target has one.
-					// But simpler: just give it.
-					// Wait, if target has one, do they pass it too? "If they are dealt..."
-					// Receiving from another player is not "dealt" from deck, but let's assume they just keep it.
-					target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, card)
-				}
-			} else {
-				s.log("%s\n", "No active players to give Second Chance. Discarding.")
-				// Discard
-				s.Game.DiscardPile = append(s.Game.DiscardPile, card)
-			}
-			return // Done processing this card for this player
+		// Create a selector for the strategy
+		selector := &strategyTargetSelector{strategy: p.Strategy, deck: round.Deck}
+		
+		// Set deck for strategies that need it
+		if ds, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
+			ds.SetDeck(round.Deck)
 		}
+		
+		result := s.secondChanceHandler.HandleSecondChance(p, round.ActivePlayers, selector)
+		
+		if result.ShouldDiscard {
+			s.log("All other active players already have a Second Chance. Discarding card.\n")
+			s.Game.DiscardPile = append(s.Game.DiscardPile, card)
+			return
+		} else if result.PassToPlayer != nil {
+			s.log("%s gives Second Chance to %s\n", p.Name, result.PassToPlayer.Name)
+			result.PassToPlayer.CurrentHand.ActionCards = append(result.PassToPlayer.CurrentHand.ActionCards, card)
+			return
+		}
+		// Otherwise, fall through to add to player's hand
 	}
 
 	busted, flip7, discarded := p.CurrentHand.AddCard(card)
@@ -277,81 +304,18 @@ func (s *GameService) ResolveAction(p *domain.Player, card domain.Card) {
 
 // ExecuteFlipThree handles the specific logic of Flip Three (nested actions).
 func (s *GameService) ExecuteFlipThree(target *domain.Player) {
-	round := s.Game.CurrentRound
-	s.log("--- %s must draw 3 cards! ---\n", target.Name)
-
-	pendingActions := []domain.Card{}
-
-	for i := 0; i < 3; i++ {
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fCard, err := s.DrawCard()
-		if err != nil {
-			s.log("%s\n", "Deck and discard pile empty during Flip Three!")
-			round.IsEnded = true
-			round.EndReason = domain.RoundEndReasonAborted
-			return
-		}
-		s.log("%s forced draw (%d/3): %v\n", target.Name, i+1, fCard)
-
-		// Handle Second Chance logic specifically for Flip Three
-		// Second Chance cards are added to the player's hand and resolved immediately.
-		// Flip Three and Freeze action cards are queued and resolved after all three cards are drawn.
-
-		if fCard.Type == domain.CardTypeAction {
-			if fCard.ActionType == domain.ActionSecondChance {
-				// Add to hand immediately (handling passing logic if duplicate)
-				s.ProcessCardDraw(target, fCard)
-				// If busted/flip7 happened in ProcessCardDraw (unlikely for SecondChance itself, but ProcessCardDraw handles AddCard), loop breaks.
-				if target.CurrentHand.Status != domain.HandStatusActive {
-					break
-				}
-				continue
-			} else if fCard.ActionType == domain.ActionFreeze || fCard.ActionType == domain.ActionFlipThree {
-				// Queue it
-				s.log("Action %s queued for after Flip Three.\n", fCard.ActionType)
-				pendingActions = append(pendingActions, fCard)
-
-				// Add to hand without triggering immediate resolution (since we resolve later)
-				target.CurrentHand.ActionCards = append(target.CurrentHand.ActionCards, fCard)
-
-				// Check Flip 7 with this new card?
-				// "Flip 7" check is in AddCard.
-				// Let's manually check Flip 7 since we bypassed ProcessCardDraw.
-				totalCards := len(target.CurrentHand.NumberCards)
-				if totalCards >= 7 {
-					s.log("%s FLIP 7! Bonus!\n", target.Name)
-					target.CurrentHand.Status = domain.HandStatusStayed
-					score := target.BankCurrentHand()
-					s.log("%s banked %d points! Total: %d\n", target.Name, score, target.TotalScore)
-					s.Game.CurrentRound.RemoveActivePlayer(target)
-					round.EndReason = domain.RoundEndReasonFlip7
-					round.IsEnded = true
-					return
-				}
-				continue
-			}
-		}
-
-		// Normal card (Number/Modifier)
-		s.ProcessCardDraw(target, fCard)
-		if round.IsEnded || target.CurrentHand.Status != domain.HandStatusActive {
-			break
+	// Create FlipThree executor with AI mode implementations
+	source := &gameServiceFlipThreeCardSource{service: s}
+	processor := &gameServiceFlipThreeCardProcessor{service: s}
+	
+	// Create logger function that uses the service's log method
+	var logger domain.FlipThreeLogger
+	if !s.Silent {
+		logger = func(message string) {
+			s.log("%s\n", message)
 		}
 	}
-
-	// Resolve Pending Actions if still active
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, actionCard := range pendingActions {
-			s.log("Resolving queued action %s...\n", actionCard.ActionType)
-			s.ResolveAction(target, actionCard)
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
-			}
-		}
-	}
-
-	s.log("--- End of Flip Three for %s ---\n", target.Name)
+	
+	executor := domain.NewFlipThreeExecutor(source, processor, logger)
+	executor.Execute(target, s.Game.CurrentRound)
 }

@@ -46,6 +46,9 @@ const (
 	ActionGiveSecondChance ActionType = "give_second_chance" // Pseudo-action for target selection
 )
 
+// FlipThreeCardCount is the number of cards drawn during Flip Three action.
+const FlipThreeCardCount = 3
+
 // Card represents a single card in the game.
 type Card struct {
 	Type         CardType     `json:"type"`

@@ -16,8 +16,6 @@ import (
 	"flip7_strategy/internal/domain/strategy"
 )
 
-const FlipThreeCardCount = 3
-
 // gameStateWrapper wraps the game state with metadata for serialization.
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`
@@ -27,18 +25,67 @@ type gameStateWrapper struct {
 
 // ManualGameService handles the manual mode where the user inputs game events.
 type ManualGameService struct {
-	Game   *domain.Game
-	Reader *bufio.Reader
-	Logger logger.GameLogger
-	GameID string
+	Game                *domain.Game
+	Reader              *bufio.Reader
+	Logger              logger.GameLogger
+	GameID              string
+	secondChanceHandler *domain.SecondChanceHandler
+}
+
+// manualFlipThreeCardSource implements FlipThreeCardSource for manual mode.
+type manualFlipThreeCardSource struct {
+	service *ManualGameService
+}
+
+func (ms *manualFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+	// Keep retrying until valid card is entered
+	for {
+		fmt.Printf("Input card %d/3 for %s: ", cardNum, target.Name)
+		input, _ := ms.service.Reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		
+		card, err := ms.service.parseInput(input)
+		if err != nil {
+			fmt.Printf("Invalid input: %v. Try again.\n", err)
+			continue // Retry
+		}
+		
+		if err := ms.service.removeCardFromDeck(card); err != nil {
+			fmt.Printf("Error: %v. Try again.\n", err)
+			continue // Retry
+		}
+		
+		return card, nil
+	}
+}
+
+// manualFlipThreeCardProcessor implements FlipThreeCardProcessor for manual mode.
+type manualFlipThreeCardProcessor struct {
+	service *ManualGameService
+}
+
+func (mp *manualFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+	mp.service.processCard(target, card)
+	return nil
+}
+
+func (mp *manualFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+	mp.service.processCard(target, card)
+	return nil
+}
+
+// SelectTarget implements domain.TargetSelector interface for manual mode.
+func (s *ManualGameService) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+	return s.promptForTarget(actionType, candidates, actor)
 }
 
 // NewManualGameService creates a new ManualGameService.
 func NewManualGameService(reader *bufio.Reader, logger logger.GameLogger) *ManualGameService {
 	return &ManualGameService{
-		Reader: reader,
-		Logger: logger,
-		GameID: fmt.Sprintf("game_%d", time.Now().Unix()),
+		Reader:              reader,
+		Logger:              logger,
+		GameID:              fmt.Sprintf("game_%d", time.Now().Unix()),
+		secondChanceHandler: domain.NewSecondChanceHandler(),
 	}
 }
 
@@ -457,11 +504,29 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		})
 	}
 
-	// Special handling for Actions
+	// Special handling for Second Chance BEFORE adding to hand
+	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
+		result := s.secondChanceHandler.HandleSecondChance(p, s.Game.CurrentRound.ActivePlayers, s)
+		
+		if result.ShouldDiscard {
+			fmt.Println("All other active players already have a Second Chance. Discarding card.")
+			fmt.Println("(Remove the Second Chance card from play)")
+			return
+		} else if result.PassToPlayer != nil {
+			fmt.Printf("%s already has a Second Chance! Giving it to %s\n", p.Name, result.PassToPlayer.Name)
+			fmt.Printf("(Give the Second Chance card to %s)\n", result.PassToPlayer.Name)
+			// Add the card to the target player's hand for tracking
+			result.PassToPlayer.CurrentHand.ActionCards = append(result.PassToPlayer.CurrentHand.ActionCards, card)
+			return
+		}
+		// Otherwise, fall through to add to player's hand
+	}
+
+	// Special handling for Actions (Freeze and Flip Three)
 	if card.Type == domain.CardTypeAction {
 		if card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze {
 			// Step 1: Prompt the drawer (p) to choose a target player for the action
-			target := s.promptForTarget(p)
+			target := s.promptForTarget(card.ActionType, s.Game.CurrentRound.ActivePlayers, p)
 			if target == nil {
 				fmt.Println("No target selected (or invalid). Action cancelled (card still played).")
 			} else {
@@ -491,8 +556,21 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		return
 	}
 
-	// Add card to hand logic
-	busted, flip7, _ := p.CurrentHand.AddCard(card)
+	// Add card to hand logic (for Number and Modifier cards)
+	busted, flip7, discarded := p.CurrentHand.AddCard(card)
+
+	// Handle discarded cards (e.g., from Second Chance usage)
+	// In manual mode, inform the user to physically remove these cards
+	if len(discarded) > 0 {
+		fmt.Printf("Second Chance used! Remove %d card(s) from play: ", len(discarded))
+		for i, c := range discarded {
+			if i > 0 {
+				fmt.Print(", ")
+			}
+			fmt.Print(c.String())
+		}
+		fmt.Println()
+	}
 
 	if busted {
 		fmt.Println("BUSTED!")
@@ -512,7 +590,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 		score := p.BankCurrentHand()
 		fmt.Printf("%s banked %d points! Total: %d\n", p.Name, score, p.TotalScore)
 
-		// Flip 7 ends the round immediately
+		// Flip 7 ends the round immediately AND removes the player from active players
+		s.Game.CurrentRound.RemoveActivePlayer(p)
 		s.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
 
 		if s.Logger != nil {
@@ -535,14 +614,31 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 // Strategic reasons for self-targeting:
 // - Freeze: Bank current points immediately (defensive play)
 // - Flip Three: Force yourself to draw 3 cards (aggressive play when needing points)
-func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
-	candidates := s.Game.CurrentRound.ActivePlayers
+// - GiveSecondChance: Pass Second Chance to a specific player
+func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
 	if len(candidates) == 0 {
-		fmt.Println("No active players to target.")
+		// Provide action-specific error messages
+		switch actionType {
+		case domain.ActionGiveSecondChance:
+			fmt.Println("No valid targets available: All other players already have a Second Chance card.")
+		default:
+			fmt.Println("No active players available to target.")
+		}
 		return nil
 	}
 
-	fmt.Println("Select Target:")
+	// Display appropriate message based on action type
+	switch actionType {
+	case domain.ActionFreeze:
+		fmt.Println("Select target to Freeze:")
+	case domain.ActionFlipThree:
+		fmt.Println("Select target for Flip Three:")
+	case domain.ActionGiveSecondChance:
+		fmt.Println("Select player to give Second Chance to:")
+	default:
+		fmt.Println("Select Target:")
+	}
+
 	for i, c := range candidates {
 		fmt.Printf("%d. %s (Score: %d)\n", i+1, c.Name, c.TotalScore)
 	}
@@ -566,61 +662,17 @@ func (s *ManualGameService) promptForTarget(p *domain.Player) *domain.Player {
 // This function prompts the user to input 3 cards for the target player and processes
 // each card according to these rules. The loop exits early if the target busts.
 func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
-	var queuedActions []domain.Card
-
-	for i := 0; i < FlipThreeCardCount; i++ {
-		// Exit early if target is no longer active (busted or other status change)
-		if target.CurrentHand.Status != domain.HandStatusActive {
-			break
-		}
-
-		fmt.Printf("Input card %d/%d for %s: ", i+1, FlipThreeCardCount, target.Name)
-		input, _ := s.Reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		card, err := s.parseInput(input)
-		if err != nil {
-			fmt.Printf("Invalid input: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		if err := s.removeCardFromDeck(card); err != nil {
-			fmt.Printf("Error: %v. Try again.\n", err)
-			i-- // Retry this card
-			continue
-		}
-
-		// Handle cards drawn during Flip Three according to game rules:
-		// - Number/Modifier/Second Chance: Process immediately via processCard
-		// - Flip Three/Freeze: Queue for later resolution (resolved manually after)
-		if card.Type == domain.CardTypeAction && (card.ActionType == domain.ActionFlipThree || card.ActionType == domain.ActionFreeze) {
-			fmt.Println("Action card drawn during Flip Three! Queued for resolution after draws.")
-			queuedActions = append(queuedActions, card)
-		} else {
-			// Process number cards, modifiers, and Second Chance immediately
-			s.processCard(target, card)
-		}
+	// Create FlipThree executor with manual mode implementations
+	source := &manualFlipThreeCardSource{service: s}
+	processor := &manualFlipThreeCardProcessor{service: s}
+	
+	// Create logger function that prints to console
+	logger := func(message string) {
+		fmt.Println(message)
 	}
-
-	// After the loop, if the player is still active, resolve queued actions
-	if target.CurrentHand.Status == domain.HandStatusActive {
-		for _, card := range queuedActions {
-			fmt.Printf("Resolving queued action: %s\n", card)
-			s.processCard(target, card)
-			// If an action causes a status change (e.g. chained Flip Three -> Bust), stop resolving
-			if target.CurrentHand.Status != domain.HandStatusActive {
-				break
-			}
-		}
-	} else {
-		// If player busted during the draws, we must ensure the queued action cards are at least added to the hand
-		// so the final hand state is correct (they were drawn, after all).
-		// processCard adds to hand, but we skipped calling it.
-		for _, card := range queuedActions {
-			target.CurrentHand.AddCard(card)
-		}
-	}
+	
+	executor := domain.NewFlipThreeExecutor(source, processor, logger)
+	executor.Execute(target, s.Game.CurrentRound)
 }
 
 func (s *ManualGameService) formatHand(h *domain.PlayerHand) string {
