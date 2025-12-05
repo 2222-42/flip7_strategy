@@ -224,3 +224,54 @@ Win rates for Strategy A (Row) vs Strategy B (Column).
 The fix to `multiply_2` logic has slightly adjusted the win rates but the overall trends remain consistent.
 - **Adaptive Strategy** remains the dominant force in multiplayer games.
 - **Expected Value Strategy** continues to be the strongest 1v1 opponent, maintaining a slight edge over Adaptive.
+
+## Latest Simulation Run (Deck Persistence Fix)
+
+**Date**: 2025-12-06
+**Changes**: Fixed deck persistence in Manual Mode (refactored `Game` struct to own `Deck`). This should not significantly affect `GameService` simulations as the logic is functionally equivalent, but results are recorded for verification.
+
+### 1. Single Player Optimization
+
+| Strategy | Avg Rounds | Median Rounds |
+| :--- | :--- | :--- |
+| **Adaptive** | **9.88** | **10.00** |
+| ExpectedValue | 9.92 | 10.00 |
+| Heuristic-27 | 9.95 | 10.00 |
+| Probabilistic | 9.88 | 10.00 |
+| Aggressive | 11.24 | 11.00 |
+| Cautious | 12.37 | 12.00 |
+
+### 2. Multiplayer Evaluation (Win Rates)
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adaptive** | **21.20%** | 19.80% | **21.80%** | **20.35%** |
+| ExpectedValue | 17.10% | **21.00%** | 17.55% | 18.55% |
+| Heuristic-27 | 15.80% | 16.30% | 16.80% | 19.55% |
+| Probabilistic | 17.10% | 19.20% | 18.85% | 17.50% |
+| Aggressive | 17.75% | 17.60% | 18.05% | 18.20% |
+| Cautious | 11.05% | 6.10% | 6.95% | 5.85% |
+
+*Adaptive Strategy remains widely dominant, winning 2, 4, and 5-player categories.*
+
+### 3. Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 36.40% | 27.20% | 26.05% | 26.30% | 23.75% |
+| **Aggressive** | 63.60% | - | 44.70% | 42.75% | 43.40% | 41.00% |
+| **Probabilistic** | 72.80% | 55.30% | - | 51.25% | 46.30% | 46.30% |
+| **Heuristic-27** | 73.95% | 57.25% | 48.75% | - | 49.10% | 47.60% |
+| **ExpectedValue** | 73.70% | 56.60% | **53.70%** | **50.90%** | - | 47.35% |
+| **Adaptive** | **76.25%** | **59.00%** | **53.70%** | **52.40%** | **52.65%** | - |
+
+**Key Finding**:
+- **Adaptive Strategy** has **reversed** the previous trend and now **wins** against **Expected Value** (52.65% vs 47.35%) and **Heuristic-27** (52.40%).
+- It effectively wins against ALL other strategies in 1v1 matchups in this run.
+
+### Conclusion
+
+The simulation confirms that the structural changes to `Game` and `Deck` management have maintained the integrity of the game logic. The **Adaptive Strategy** continues to demonstrate superior performance, sweeping the 1v1 matchups and performing consistently well in multiplayer scenarios.
+
