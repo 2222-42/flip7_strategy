@@ -8,6 +8,20 @@ import (
 	"flip7_strategy/internal/domain"
 )
 
+// removeAllCardsOfValue removes all cards of a given value from the deck
+func removeAllCardsOfValue(deck *domain.Deck, value domain.NumberValue, count int) {
+	for removed := 0; removed < count; {
+		for i := 0; i < len(deck.Cards); i++ {
+			if deck.Cards[i].Type == domain.CardTypeNumber && deck.Cards[i].Value == value {
+				deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
+				deck.RemainingCounts[value]--
+				removed++
+				break
+			}
+		}
+	}
+}
+
 func TestRemoveCardFromDeck(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -29,13 +43,7 @@ func TestRemoveCardFromDeck(t *testing.T) {
 			setupDeck: func() *domain.Deck {
 				deck := domain.NewDeck()
 				// Card 1 has only 1 copy, remove it
-				for i := 0; i < len(deck.Cards); i++ {
-					if deck.Cards[i].Type == domain.CardTypeNumber && deck.Cards[i].Value == domain.NumberValue(1) {
-						deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
-						deck.RemainingCounts[domain.NumberValue(1)]--
-						break
-					}
-				}
+				removeAllCardsOfValue(deck, domain.NumberValue(1), 1)
 				return deck
 			},
 			cardToRemove: domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(1)},
@@ -47,16 +55,7 @@ func TestRemoveCardFromDeck(t *testing.T) {
 			setupDeck: func() *domain.Deck {
 				deck := domain.NewDeck()
 				// Card 6 has 6 copies, remove all 6
-				for removed := 0; removed < 6; {
-					for i := 0; i < len(deck.Cards); i++ {
-						if deck.Cards[i].Type == domain.CardTypeNumber && deck.Cards[i].Value == domain.NumberValue(6) {
-							deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
-							deck.RemainingCounts[domain.NumberValue(6)]--
-							removed++
-							break
-						}
-					}
-				}
+				removeAllCardsOfValue(deck, domain.NumberValue(6), 6)
 				return deck
 			},
 			cardToRemove: domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(6)},
@@ -68,16 +67,7 @@ func TestRemoveCardFromDeck(t *testing.T) {
 			setupDeck: func() *domain.Deck {
 				deck := domain.NewDeck()
 				// Card 12 has 12 copies, remove all 12
-				for removed := 0; removed < 12; {
-					for i := 0; i < len(deck.Cards); i++ {
-						if deck.Cards[i].Type == domain.CardTypeNumber && deck.Cards[i].Value == domain.NumberValue(12) {
-							deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
-							deck.RemainingCounts[domain.NumberValue(12)]--
-							removed++
-							break
-						}
-					}
-				}
+				removeAllCardsOfValue(deck, domain.NumberValue(12), 12)
 				return deck
 			},
 			cardToRemove: domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(12)},
@@ -89,16 +79,7 @@ func TestRemoveCardFromDeck(t *testing.T) {
 			setupDeck: func() *domain.Deck {
 				deck := domain.NewDeck()
 				// Card 7 has 7 copies, remove 5
-				for removed := 0; removed < 5; {
-					for i := 0; i < len(deck.Cards); i++ {
-						if deck.Cards[i].Type == domain.CardTypeNumber && deck.Cards[i].Value == domain.NumberValue(7) {
-							deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
-							deck.RemainingCounts[domain.NumberValue(7)]--
-							removed++
-							break
-						}
-					}
-				}
+				removeAllCardsOfValue(deck, domain.NumberValue(7), 5)
 				return deck
 			},
 			cardToRemove: domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(7)},

@@ -5,20 +5,25 @@ import (
 	"testing"
 )
 
+// removeCardsFromDeck removes a specified number of cards of a given value from the deck
+func removeCardsFromDeck(deck *domain.Deck, cardValue domain.NumberValue, count int) {
+	for i := 0; i < count; i++ {
+		for j, c := range deck.Cards {
+			if c.Type == domain.CardTypeNumber && c.Value == cardValue {
+				deck.Cards = append(deck.Cards[:j], deck.Cards[j+1:]...)
+				deck.RemainingCounts[cardValue]--
+				break
+			}
+		}
+	}
+}
+
 func TestEstimateHitRiskWithAllCardsDrawn(t *testing.T) {
 	// Test that bust rate is 0% when all copies of a card are drawn
 	deck := domain.NewDeck()
 
 	// Draw all 6 copies of card 6
-	for i := 0; i < 6; i++ {
-		for j, c := range deck.Cards {
-			if c.Type == domain.CardTypeNumber && c.Value == domain.NumberValue(6) {
-				deck.Cards = append(deck.Cards[:j], deck.Cards[j+1:]...)
-				deck.RemainingCounts[domain.NumberValue(6)]--
-				break
-			}
-		}
-	}
+	removeCardsFromDeck(deck, domain.NumberValue(6), 6)
 
 	// Verify card 6 is completely drawn
 	if deck.RemainingCounts[domain.NumberValue(6)] != 0 {
@@ -84,16 +89,8 @@ func TestEstimateHitRiskWithHighValueCards(t *testing.T) {
 			deck := domain.NewDeck()
 			originalTotal := len(deck.Cards)
 
-			// Draw specified number of copies
-			for i := 0; i < tt.copiesToDraw; i++ {
-				for j, c := range deck.Cards {
-					if c.Type == domain.CardTypeNumber && c.Value == tt.cardValue {
-						deck.Cards = append(deck.Cards[:j], deck.Cards[j+1:]...)
-						deck.RemainingCounts[tt.cardValue]--
-						break
-					}
-				}
-			}
+			// Draw specified number of copies using helper function
+			removeCardsFromDeck(deck, tt.cardValue, tt.copiesToDraw)
 
 			// Verify the count
 			expectedRemaining := tt.copiesInDeck - tt.copiesToDraw
