@@ -156,7 +156,11 @@ func (d *Deck) EstimateHitRisk(handNumbers map[NumberValue]struct{}) float64 {
 
 	riskCards := 0
 	for val := range handNumbers {
-		riskCards += d.RemainingCounts[val]
+		count := d.RemainingCounts[val]
+		// Protect against negative counts (shouldn't happen, but be defensive)
+		if count > 0 {
+			riskCards += count
+		}
 	}
 
 	return float64(riskCards) / float64(total)

@@ -59,7 +59,7 @@ func TestRemoveCardFromDeck_AllCopiesDrawn(t *testing.T) {
 				t.Errorf("RemainingCounts[%d] = %d, want 0", tt.cardValue, deck.RemainingCounts[tt.cardValue])
 			}
 
-			// Try to remove one more copy - should fail
+			// Try to remove one more copy - should fail with pre-validation check
 			err := service.removeCardFromDeck(card)
 			if err == nil {
 				t.Errorf("Expected error when removing card %d after all copies drawn, but got nil", tt.cardValue)
@@ -70,5 +70,36 @@ func TestRemoveCardFromDeck_AllCopiesDrawn(t *testing.T) {
 				t.Errorf("RemainingCounts[%d] = %d, should not be negative", tt.cardValue, deck.RemainingCounts[tt.cardValue])
 			}
 		})
+	}
+}
+
+// TestRemoveCardFromDeck_RemainingCountsValidation tests that the pre-validation
+// check prevents removing cards when RemainingCounts is already at 0.
+func TestRemoveCardFromDeck_RemainingCountsValidation(t *testing.T) {
+	game := domain.NewGame([]*domain.Player{
+		domain.NewPlayer("Player1", nil),
+	})
+	deck := domain.NewDeck()
+	game.CurrentRound = domain.NewRound(game.Players, game.Players[0], deck)
+
+	service := &ManualGameService{
+		Game: game,
+	}
+
+	// Manually set RemainingCounts to 0 for card 7
+	deck.RemainingCounts[domain.NumberValue(7)] = 0
+
+	card := domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(7)}
+
+	// Try to remove card 7 - should fail immediately due to pre-validation
+	err := service.removeCardFromDeck(card)
+	if err == nil {
+		t.Error("Expected error when RemainingCounts is 0, but got nil")
+	}
+
+	// Verify the error message
+	expectedMsg := "card not found in deck (already drawn?)"
+	if err.Error() != expectedMsg {
+		t.Errorf("Error message = %q, want %q", err.Error(), expectedMsg)
 	}
 }
