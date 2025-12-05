@@ -59,7 +59,7 @@ func TestDeckInitialization_TotalCards(t *testing.T) {
 	deck := NewDeck()
 
 	// Count expected number of cards
-	// Numbers: 1+1+2+3+4+5+6+7+8+9+10+11+12 = 79
+	// Numbers: 0:1 + 1:1 + 2:2 + 3:3 + 4:4 + 5:5 + 6:6 + 7:7 + 8:8 + 9:9 + 10:10 + 11:11 + 12:12 = 79
 	// Modifiers: 6 types * 2 = 12
 	// Actions: 3 types * 3 = 9
 	// Total = 100
