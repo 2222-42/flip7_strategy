@@ -81,6 +81,7 @@ type Game struct {
 	Winners      []*Player `json:"winners"`
 	DiscardPile  []Card    `json:"discard_pile"`
 	RoundCount   int       `json:"round_count"`
+	Deck         *Deck     `json:"deck"`
 }
 
 // NewGame creates a new game.
