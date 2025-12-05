@@ -43,18 +43,18 @@ func (ms *manualFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Pla
 		fmt.Printf("Input card %d/3 for %s: ", cardNum, target.Name)
 		input, _ := ms.service.Reader.ReadString('\n')
 		input = strings.TrimSpace(input)
-		
+
 		card, err := ms.service.parseInput(input)
 		if err != nil {
 			fmt.Printf("Invalid input: %v. Try again.\n", err)
 			continue // Retry
 		}
-		
+
 		if err := ms.service.removeCardFromDeck(card); err != nil {
 			fmt.Printf("Error: %v. Try again.\n", err)
 			continue // Retry
 		}
-		
+
 		return card, nil
 	}
 }
@@ -222,9 +222,11 @@ func (s *ManualGameService) gameLoop() {
 func (s *ManualGameService) playRound() {
 	// Initialize new round only if not resuming
 	if s.Game.CurrentRound == nil || s.Game.CurrentRound.IsEnded {
-		deck := domain.NewDeck()
+		if s.Game.Deck == nil {
+			s.Game.Deck = domain.NewDeck()
+		}
 		dealer := s.Game.Players[s.Game.DealerIndex]
-		s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, deck)
+		s.Game.CurrentRound = domain.NewRound(s.Game.Players, dealer, s.Game.Deck)
 		fmt.Printf("\n--- New Round! Dealer: %s ---\n", dealer.Name)
 
 		if s.Logger != nil {
@@ -507,7 +509,7 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	// Special handling for Second Chance BEFORE adding to hand
 	if card.Type == domain.CardTypeAction && card.ActionType == domain.ActionSecondChance {
 		result := s.secondChanceHandler.HandleSecondChance(p, s.Game.CurrentRound.ActivePlayers, s)
-		
+
 		if result.ShouldDiscard {
 			fmt.Println("All other active players already have a Second Chance. Discarding card.")
 			fmt.Println("(Remove the Second Chance card from play)")
@@ -665,12 +667,12 @@ func (s *ManualGameService) resolveFlipThreeManual(target *domain.Player) {
 	// Create FlipThree executor with manual mode implementations
 	source := &manualFlipThreeCardSource{service: s}
 	processor := &manualFlipThreeCardProcessor{service: s}
-	
+
 	// Create logger function that prints to console
 	logger := func(message string) {
 		fmt.Println(message)
 	}
-	
+
 	executor := domain.NewFlipThreeExecutor(source, processor, logger)
 	executor.Execute(target, s.Game.CurrentRound)
 }
@@ -793,6 +795,10 @@ func (s *ManualGameService) RelinkPointers(g *domain.Game, userControlledIDs []s
 			if existing, ok := playerMap[g.CurrentRound.Dealer.ID.String()]; ok {
 				g.CurrentRound.Dealer = existing
 			}
+		}
+		// Relink Deck
+		if g.Deck != nil {
+			g.CurrentRound.Deck = g.Deck
 		}
 	}
 
