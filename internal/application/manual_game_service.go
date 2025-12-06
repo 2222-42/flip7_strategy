@@ -649,7 +649,7 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 	suggested := adaptive.ChooseTarget(actionType, candidates, actor)
 
 	for i, c := range candidates {
-		fmt.Printf("%d. %s\n", i+1, s.formatCandidateOption(c, suggested))
+		fmt.Printf("%d. %s\n", i+1, s.FormatCandidateOption(c, suggested))
 	}
 
 	fmt.Print("Enter choice: ")
@@ -661,16 +661,20 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 	return candidates[idx-1]
 }
 
-// formatCandidateOption formats a candidate player for display in the selection list.
-// It includes the player's name, score, hand contents, and a suggestion marker if applicable.
-// Making this public (capitalized) or internal-exported allows for easier testing if needed,
-// but since it's a method on *ManualGameService, we can test it if we can instantiate the service.
-func (s *ManualGameService) formatCandidateOption(candidate *domain.Player, suggested *domain.Player) string {
+// FormatCandidateOption formats a candidate player for display in the selection list.
+// It includes the player's name, score, hand contents, and marks the suggested candidate.
+// Note: Returns "[]" for nil CurrentHand. In practice, this method is called during active
+// gameplay when all candidates have initialized hands, but the nil check provides defensive
+// programming against edge cases.
+func (s *ManualGameService) FormatCandidateOption(candidate *domain.Player, suggested *domain.Player) string {
 	marker := ""
 	if suggested != nil && candidate.ID == suggested.ID {
 		marker = " [Suggested]"
 	}
-	handStr := s.formatHand(candidate.CurrentHand)
+	handStr := "[]"
+	if candidate.CurrentHand != nil {
+		handStr = s.formatHand(candidate.CurrentHand)
+	}
 	return fmt.Sprintf("%s (Score: %d) Hand: %s%s", candidate.Name, candidate.TotalScore, handStr, marker)
 }
 
