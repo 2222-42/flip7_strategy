@@ -249,7 +249,7 @@ func (d *Deck) Shuffle() { /* random.Shuffle */ }
 
 **Initialization**:  
 - Numbers: 12:x12, 11:x11, ..., 1:x1, 0:x1.  
-- Modifiers: +2/+4/+6/+8/+10/x2: x2 each.  
+- Modifiers: +2/+4/+6/+8/+10/x2: x1 each.  
 - Actions: Freeze/FlipThree/SecondChance: x3 each.
 
 ## Repositories (Infrastructure Layer)
