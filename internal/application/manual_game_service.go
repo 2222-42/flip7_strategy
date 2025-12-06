@@ -649,12 +649,7 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 	suggested := adaptive.ChooseTarget(actionType, candidates, actor)
 
 	for i, c := range candidates {
-		marker := ""
-		if c.ID == suggested.ID {
-			marker = " [Suggested]"
-		}
-		handStr := s.formatHand(c.CurrentHand)
-		fmt.Printf("%d. %s (Score: %d) Hand: %s%s\n", i+1, c.Name, c.TotalScore, handStr, marker)
+		fmt.Printf("%d. %s\n", i+1, s.formatCandidateOption(c, suggested))
 	}
 
 	fmt.Print("Enter choice: ")
@@ -664,6 +659,19 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 		return nil
 	}
 	return candidates[idx-1]
+}
+
+// formatCandidateOption formats a candidate player for display in the selection list.
+// It includes the player's name, score, hand contents, and a suggestion marker if applicable.
+// Making this public (capitalized) or internal-exported allows for easier testing if needed,
+// but since it's a method on *ManualGameService, we can test it if we can instantiate the service.
+func (s *ManualGameService) formatCandidateOption(candidate *domain.Player, suggested *domain.Player) string {
+	marker := ""
+	if suggested != nil && candidate.ID == suggested.ID {
+		marker = " [Suggested]"
+	}
+	handStr := s.formatHand(candidate.CurrentHand)
+	return fmt.Sprintf("%s (Score: %d) Hand: %s%s", candidate.Name, candidate.TotalScore, handStr, marker)
 }
 
 // resolveFlipThreeManual handles the Flip Three action effect on the target player.
