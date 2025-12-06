@@ -7,16 +7,13 @@ import (
 	"testing"
 )
 
-type MockLoggerRepl struct{}
-
-func (m *MockLoggerRepl) Log(gameID, roundID, playerID, eventType string, details map[string]interface{}) {
-}
-func (m *MockLoggerRepl) Close() {}
+// MockLoggerRepl removed, using MockLogger from reproduce_issue_test.go
 
 func TestManualGameService_Replenishment(t *testing.T) {
 	// Setup Service
 	reader := bufio.NewReader(strings.NewReader(""))
-	svc := NewManualGameService(reader, &MockLoggerRepl{})
+	// Reuse MockLogger from reproduce_issue_test.go (same package)
+	svc := NewManualGameService(reader, &MockLogger{})
 
 	// Setup Game manually
 	p1 := domain.NewPlayer("P1", nil)
@@ -26,6 +23,8 @@ func TestManualGameService_Replenishment(t *testing.T) {
 		svc.Game.Deck = domain.NewDeck()
 	}
 	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, p1, svc.Game.Deck)
+	// Sync deck references (PR feedback)
+	svc.Game.Deck = svc.Game.CurrentRound.Deck
 
 	// Rig Deck: Contains only "1"
 	card1 := domain.Card{Type: domain.CardTypeNumber, Value: 1}
@@ -54,5 +53,16 @@ func TestManualGameService_Replenishment(t *testing.T) {
 		t.Errorf("Replenishment Failed: Expected success when removing card 2 from replenished deck, but got error: %v", err)
 	} else {
 		t.Log("Replenishment Successful: Card 2 removed from deck.")
+
+		// Verify Side Effects (PR feedback)
+		// 1. Discard pile should be empty
+		if len(svc.Game.DiscardPile) != 0 {
+			t.Errorf("Expected DiscardPile to be empty after replenishment, got %d cards", len(svc.Game.DiscardPile))
+		}
+
+		// 2. Game.Deck should be updated to point to the new deck (CurrentRound.Deck)
+		if svc.Game.Deck != svc.Game.CurrentRound.Deck {
+			t.Error("Expected Game.Deck to be updated to CurrentRound.Deck after replenishment")
+		}
 	}
 }

@@ -211,6 +211,11 @@ func (s *ManualGameService) gameLoop() {
 				s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ModifierCards...)
 				// Action cards
 				s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ActionCards...)
+
+				// Clear the hand after collecting to prevent double counting or memory issues
+				p.CurrentHand.RawNumberCards = nil
+				p.CurrentHand.ModifierCards = nil
+				p.CurrentHand.ActionCards = nil
 			}
 		}
 
@@ -527,8 +532,12 @@ func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
 					newDeck.RemainingCounts[c.Value]++
 				}
 			}
-			newDeck.Shuffle()
+			// Only shuffle again if we added existing cards, otherwise NewDeckFromCards shuffle is sufficient.
+			// Actually, if we append cards to the end, we SHOULD shuffle everything again to mix them.
+			// Wait, the PR comment said: "NewDeckFromCards already shuffles... but then you only shuffle again if there were remaining cards... This creates inconsistent behavior".
+			// Suggestion: Move shuffle outside.
 		}
+		newDeck.Shuffle()
 
 		// Update references
 		s.Game.CurrentRound.Deck = newDeck
@@ -632,8 +641,6 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 	// Add card to hand logic (for Number and Modifier cards)
 	busted, flip7, discarded := p.CurrentHand.AddCard(card)
 
-	// Handle discarded cards (e.g., from Second Chance usage)
-	// In manual mode, inform the user to physically remove these cards
 	// Handle discarded cards (e.g., from Second Chance usage)
 	// In manual mode, inform the user to physically remove these cards
 	if len(discarded) > 0 {
