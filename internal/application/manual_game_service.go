@@ -200,6 +200,20 @@ func (s *ManualGameService) gameLoop() {
 	for !s.Game.IsCompleted {
 		s.Game.RoundCount++
 		s.playRound()
+		// Collect cards from players' hands to discard pile at end of round
+		if s.Game.CurrentRound != nil { // Could be nil on first iteration or error
+			for _, p := range s.Game.Players {
+				// Number cards
+				for _, val := range p.CurrentHand.RawNumberCards {
+					s.Game.DiscardPile = append(s.Game.DiscardPile, domain.Card{Type: domain.CardTypeNumber, Value: val})
+				}
+				// Modifier cards
+				s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ModifierCards...)
+				// Action cards
+				s.Game.DiscardPile = append(s.Game.DiscardPile, p.CurrentHand.ActionCards...)
+			}
+		}
+
 		// Rotate dealer for next round
 		s.Game.DealerIndex = (s.Game.DealerIndex + 1) % len(s.Game.Players)
 
@@ -208,6 +222,11 @@ func (s *ManualGameService) gameLoop() {
 		if len(winners) > 0 {
 			s.Game.Winners = winners
 			s.Game.IsCompleted = true
+		}
+		// Update deck reference for the next round
+		// If a reshuffle happened during PlayRound, s.Game.CurrentRound.Deck points to the new deck.
+		if s.Game.CurrentRound != nil && s.Game.CurrentRound.Deck != nil {
+			s.Game.Deck = s.Game.CurrentRound.Deck
 		}
 	}
 	s.printWinner()
@@ -443,33 +462,85 @@ func (s *ManualGameService) parseInput(input string) (domain.Card, error) {
 }
 
 func (s *ManualGameService) removeCardFromDeck(card domain.Card) error {
+	// Check if deck is active
 	if s.Game.CurrentRound == nil || s.Game.CurrentRound.Deck == nil {
 		return fmt.Errorf("no active round/deck")
 	}
+
 	deck := s.Game.CurrentRound.Deck
-	// Find and remove card from deck.Cards
-	for i, c := range deck.Cards {
-		match := false
-		if c.Type == card.Type {
-			if c.Type == domain.CardTypeNumber && c.Value == card.Value {
-				match = true
-			} else if c.Type == domain.CardTypeModifier && c.ModifierType == card.ModifierType {
-				match = true
-			} else if c.Type == domain.CardTypeAction && c.ActionType == card.ActionType {
-				match = true
+
+	// Helper to find and remove card
+	findAndRemove := func(d *domain.Deck, target domain.Card) bool {
+		for i, c := range d.Cards {
+			match := false
+			if c.Type == target.Type {
+				if c.Type == domain.CardTypeNumber && c.Value == target.Value {
+					match = true
+				} else if c.Type == domain.CardTypeModifier && c.ModifierType == target.ModifierType {
+					match = true
+				} else if c.Type == domain.CardTypeAction && c.ActionType == target.ActionType {
+					match = true
+				}
+			}
+
+			if match {
+				// Remove it
+				d.Cards = append(d.Cards[:i], d.Cards[i+1:]...)
+				// Update counts if number
+				if target.Type == domain.CardTypeNumber {
+					d.RemainingCounts[target.Value]--
+				}
+				return true
 			}
 		}
+		return false
+	}
 
-		if match {
-			// Remove it
-			deck.Cards = append(deck.Cards[:i], deck.Cards[i+1:]...)
-			// Update counts if number
-			if card.Type == domain.CardTypeNumber {
-				deck.RemainingCounts[card.Value]--
+	// Try removing from current deck
+	if findAndRemove(deck, card) {
+		return nil
+	}
+
+	// If not found, it might be because the deck is empty (or the card is simply not there).
+	// We should try to replenish the deck from the discard pile IF the deck is effectively empty
+	// relative to the user's perception (i.e., they are trying to draw a card that should be there).
+	// However, we don't know "what" they are trying to draw until they input it.
+	// If the card IS valid but just not in the current small deck remnant, we reshuffle.
+
+	if len(s.Game.DiscardPile) > 0 {
+		fmt.Printf("Card not found in current deck. Attempting to reshuffle %d cards from discard pile...\n", len(s.Game.DiscardPile))
+		if s.Logger != nil {
+			s.Logger.Log(s.GameID, strconv.Itoa(s.Game.RoundCount), "system", "Reshuffle", map[string]interface{}{
+				"discard_count": len(s.Game.DiscardPile),
+			})
+		}
+
+		// Create new deck from discards
+		newDeck := domain.NewDeckFromCards(s.Game.DiscardPile)
+		// Append existing deck cards to new deck (in case there were a few left)
+		if len(deck.Cards) > 0 {
+			newDeck.Cards = append(newDeck.Cards, deck.Cards...)
+			// Re-calculate counts or merge counts (simpler to just rebuild counts from all cards)
+			// But NewDeckFromCards already builds counts from input. We need to add existing.
+			for _, c := range deck.Cards {
+				if c.Type == domain.CardTypeNumber {
+					newDeck.RemainingCounts[c.Value]++
+				}
 			}
+			newDeck.Shuffle()
+		}
+
+		// Update references
+		s.Game.CurrentRound.Deck = newDeck
+		s.Game.Deck = newDeck
+		s.Game.DiscardPile = []domain.Card{} // Clear discard pile
+
+		// Try removing again from the new deck
+		if findAndRemove(s.Game.CurrentRound.Deck, card) {
 			return nil
 		}
 	}
+
 	return fmt.Errorf("card not found in deck (already drawn?)")
 }
 
@@ -563,6 +634,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 
 	// Handle discarded cards (e.g., from Second Chance usage)
 	// In manual mode, inform the user to physically remove these cards
+	// Handle discarded cards (e.g., from Second Chance usage)
+	// In manual mode, inform the user to physically remove these cards
 	if len(discarded) > 0 {
 		fmt.Printf("Second Chance used! Remove %d card(s) from play: ", len(discarded))
 		for i, c := range discarded {
@@ -572,6 +645,8 @@ func (s *ManualGameService) processCard(p *domain.Player, card domain.Card) {
 			fmt.Print(c.String())
 		}
 		fmt.Println()
+		// Add to discard pile
+		s.Game.DiscardPile = append(s.Game.DiscardPile, discarded...)
 	}
 
 	if busted {
