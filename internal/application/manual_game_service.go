@@ -663,6 +663,9 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 
 // FormatCandidateOption formats a candidate player for display in the selection list.
 // It includes the player's name, score, hand contents, and marks the suggested candidate.
+// Note: Returns "[]" for nil CurrentHand. In practice, this method is called during active
+// gameplay when all candidates have initialized hands, but the nil check provides defensive
+// programming against edge cases.
 func (s *ManualGameService) FormatCandidateOption(candidate *domain.Player, suggested *domain.Player) string {
 	marker := ""
 	if suggested != nil && candidate.ID == suggested.ID {

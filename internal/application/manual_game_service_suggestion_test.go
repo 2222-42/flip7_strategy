@@ -57,7 +57,7 @@ func TestFormatCandidateOption(t *testing.T) {
 	t.Run("NilCurrentHand", func(t *testing.T) {
 		candidateWithoutHand := domain.NewPlayer("NoHand", nil)
 		candidateWithoutHand.TotalScore = 100
-		candidateWithoutHand.CurrentHand = nil
+		// NewPlayer creates players with nil CurrentHand
 
 		output := service.FormatCandidateOption(candidateWithoutHand, nil)
 
