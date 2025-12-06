@@ -105,9 +105,7 @@ func NewDeck() *Deck {
 	// Add Modifiers: 2x each
 	modifiers := []ModifierType{ModifierPlus2, ModifierPlus4, ModifierPlus6, ModifierPlus8, ModifierPlus10, ModifierX2}
 	for _, mod := range modifiers {
-		for j := 0; j < 1; j++ {
-			cards = append(cards, Card{Type: CardTypeModifier, ModifierType: mod})
-		}
+		cards = append(cards, Card{Type: CardTypeModifier, ModifierType: mod})
 	}
 
 	// Add Actions: 3x each
