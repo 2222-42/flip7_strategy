@@ -275,3 +275,64 @@ Win rates for Strategy A (Row) vs Strategy B (Column).
 
 The simulation confirms that the structural changes to `Game` and `Deck` management have maintained the integrity of the game logic. The **Adaptive Strategy** continues to demonstrate superior performance, sweeping the 1v1 matchups and performing consistently well in multiplayer scenarios.
 
+## Latest Simulation Run (Bust Rate Fix & Re-optimization)
+
+**Date**: 2025-12-06
+**Changes**: 
+- Fixed `EstimateHitRisk` to correctly account for Second Chance cards (risk is 0% if holding Second Chance).
+- Re-ran Target Selection Optimization to find new optimal risk thresholds.
+- Updated `AdaptiveStrategy` and simulation configurations to use these new thresholds.
+
+### 1. Target Selection Optimization (Flip Three Risk Thresholds)
+
+We re-evaluated the optimal "Flip Three" risk threshold for each strategy (1000 games per batch).
+
+| Strategy | Optimal Risk Threshold | Win Rate (in batch) |
+| :--- | :--- | :--- |
+| **Expected Value** | **0.80** | **15.30%** |
+| **Probabilistic** | **0.70** | **14.60%** |
+| **Heuristic** | **0.65** | **14.35%** |
+| **Aggressive** | **0.65** | **15.20%** |
+
+*Note: The "Bust Rate Fix" shifted the optimal thresholds. For example, Aggressive moved from 0.90 to 0.65, suggesting that with more accurate risk assessment (knowing Second Chance protects you), one can be aggressive with targeting even at lower opponent risk levels.*
+
+### 2. Multiplayer Evaluation (Win Rates)
+
+Using the new optimal thresholds (Adaptive uses EV-0.80 and Aggr-0.65).
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adaptive** | **21.10%** | 19.80% | **20.85%** | **21.40%** |
+| **Aggressive** | 18.45% | **20.90%** | 20.30% | 16.55% |
+| **ExpectedValue** | 17.15% | 18.95% | 19.40% | 18.95% |
+| **Heuristic-27** | 15.65% | 17.80% | 18.85% | 19.80% |
+| **Probabilistic** | 17.70% | 16.30% | 15.85% | 18.40% |
+| **Cautious** | 9.95% | 6.25% | 4.75% | 4.90% |
+
+*Analysis*:
+- **Adaptive Strategy** dominates the field, winning in 2, 4, and 5 player configs.
+- **Aggressive Strategy** had a strong showing in 3-player games.
+- **Expected Value** remains consistent but rarely takes top spot in multiplayer.
+
+### 3. Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 32.25% | 24.65% | 26.15% | 20.45% | 22.70% |
+| **Aggressive** | 67.75% | - | 48.30% | 44.15% | 41.05% | 42.80% |
+| **Probabilistic** | 75.35% | **51.70%** | - | 48.95% | 47.35% | 45.00% |
+| **Heuristic-27** | 73.85% | **55.85%** | **51.05%** | - | 49.70% | 44.75% |
+| **ExpectedValue** | **79.55%** | **58.95%** | **52.65%** | **50.30%** | - | **51.00%** |
+| **Adaptive** | **77.30%** | **57.20%** | **55.00%** | **55.25%** | 49.00% | - |
+
+**Key Findings**:
+- **Expected Value Strategy** is the **1v1 Champion**, defeating ALL other strategies, including a narrow victory over Adaptive (51.00% vs 49.00%).
+- **Adaptive Strategy** is a very close second, defeating everyone except Expected Value.
+
+## Conclusion
+
+The fix to `EstimateHitRisk` and subsequent optimization has refined the strategy landscape.
+- **Adaptive Strategy** is the best general-purpose strategy (Multiplayer).
+- **Expected Value Strategy** (with Risk Threshold 0.80) is the best duelist (1v1).

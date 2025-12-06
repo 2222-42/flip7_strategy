@@ -407,7 +407,7 @@ func (s *ManualGameService) playRound() {
 
 func (s *ManualGameService) analyzeState(p *domain.Player) {
 	// Show bust rate
-	risk := s.Game.CurrentRound.Deck.EstimateHitRisk(p.CurrentHand.NumberCards)
+	risk := s.Game.CurrentRound.Deck.EstimateHitRisk(p.CurrentHand.NumberCards, p.CurrentHand.HasSecondChance())
 	fmt.Printf("Bust Rate: %.2f%%\n", risk*100)
 
 	// Suggest best choice
