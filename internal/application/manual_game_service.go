@@ -641,8 +641,20 @@ func (s *ManualGameService) promptForTarget(actionType domain.ActionType, candid
 		fmt.Println("Select Target:")
 	}
 
+	// Suggestion Logic using AdaptiveStrategy
+	adaptive := strategy.NewAdaptiveStrategy()
+	if s.Game.CurrentRound != nil {
+		adaptive.SetDeck(s.Game.CurrentRound.Deck)
+	}
+	suggested := adaptive.ChooseTarget(actionType, candidates, actor)
+
 	for i, c := range candidates {
-		fmt.Printf("%d. %s (Score: %d)\n", i+1, c.Name, c.TotalScore)
+		marker := ""
+		if c.ID == suggested.ID {
+			marker = " [Suggested]"
+		}
+		handStr := s.formatHand(c.CurrentHand)
+		fmt.Printf("%d. %s (Score: %d) Hand: %s%s\n", i+1, c.Name, c.TotalScore, handStr, marker)
 	}
 
 	fmt.Print("Enter choice: ")
