@@ -34,7 +34,7 @@ func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playe
 	score := calc.Compute(hand)
 	fmt.Printf("Current Hand Score: %d (Total Banked: %d)\n", score.Total, playerScore)
 
-	risk := deck.EstimateHitRisk(hand.NumberCards)
+	risk := deck.EstimateHitRisk(hand.NumberCards, hand.HasSecondChance())
 	fmt.Printf("Estimated Risk of Bust: %.2f%%\n", risk*100)
 
 	for {

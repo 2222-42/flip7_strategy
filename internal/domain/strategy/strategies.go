@@ -31,7 +31,7 @@ func (s *CautiousStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, pl
 	if score.Total > 30 {
 		return domain.TurnChoiceStay
 	}
-	risk := deck.EstimateHitRisk(hand.NumberCards)
+	risk := deck.EstimateHitRisk(hand.NumberCards, hand.HasSecondChance())
 	if risk > 0.10 {
 		return domain.TurnChoiceStay
 	}
@@ -123,7 +123,7 @@ func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, 
 	if hand.HasSecondChance() {
 		return domain.TurnChoiceHit
 	}
-	risk := deck.EstimateHitRisk(hand.NumberCards)
+	risk := deck.EstimateHitRisk(hand.NumberCards, hand.HasSecondChance())
 	totalCards := len(hand.NumberCards)
 	if totalCards == 6 && risk < 0.5 {
 		return domain.TurnChoiceHit
@@ -181,7 +181,7 @@ func (s *ProbabilisticStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 	if hand.HasSecondChance() {
 		return domain.TurnChoiceHit
 	}
-	risk := deck.EstimateHitRisk(hand.NumberCards)
+	risk := deck.EstimateHitRisk(hand.NumberCards, hand.HasSecondChance())
 	maxOpponentScore := 0
 	for _, p := range otherPlayers {
 		if p.TotalScore > maxOpponentScore {
@@ -221,7 +221,7 @@ func chooseFreezeTarget(candidates []*domain.Player, self *domain.Player, deck *
 	if self.TotalScore > maxScore {
 		risk := 0.0
 		if deck != nil {
-			risk = deck.EstimateHitRisk(self.CurrentHand.NumberCards)
+			risk = deck.EstimateHitRisk(self.CurrentHand.NumberCards, self.CurrentHand.HasSecondChance())
 		}
 		// If risk is high (> 50%), freeze self to be safe.
 		if risk > 0.5 {

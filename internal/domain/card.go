@@ -149,7 +149,11 @@ func (d *Deck) Draw() (Card, error) {
 }
 
 // EstimateHitRisk calculates the probability of busting based on the current hand.
-func (d *Deck) EstimateHitRisk(handNumbers map[NumberValue]struct{}) float64 {
+func (d *Deck) EstimateHitRisk(handNumbers map[NumberValue]struct{}, hasSecondChance bool) float64 {
+	if hasSecondChance {
+		return 0.0
+	}
+
 	total := len(d.Cards)
 	if total == 0 {
 		return 0
