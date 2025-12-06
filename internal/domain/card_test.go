@@ -6,6 +6,98 @@ import (
 	"flip7_strategy/internal/domain"
 )
 
+func TestEstimateHitRisk(t *testing.T) {
+	// Test case from issue: Deck has only Number 2 and Number 5
+	// Hand has [5, 10, 7, 11, freeze]
+	// Only Number 5 can cause a bust, so bust rate should be 50% (1/2)
+	t.Run("Issue: Deck with 2 number cards and hand with one duplicate", func(t *testing.T) {
+		handNumbers := map[domain.NumberValue]struct{}{
+			5: {}, 10: {}, 7: {}, 11: {},
+		}
+
+		// Create a deck with Number 2 and Number 5
+		cards := []domain.Card{
+			{Type: domain.CardTypeNumber, Value: 2},
+			{Type: domain.CardTypeNumber, Value: 5},
+		}
+		deck := domain.NewDeckFromCards(cards)
+
+		risk := deck.EstimateHitRisk(handNumbers)
+		// Expected: 1 risky card out of 2 total cards = 0.5 (50%)
+		expectedRisk := 0.5
+		if risk != expectedRisk {
+			t.Errorf("Expected risk %.2f (50%%), got %.2f (%.2f%%)", expectedRisk, risk, risk*100)
+		}
+	})
+
+	// Test with deck containing modifiers and actions
+	// Hand has [5, 10]
+	// Deck has [Number 5, Number 7, Modifier +2, Action Freeze]
+	// Only Number 5 can bust, so bust rate should be 1/2 = 50% (only counting number cards)
+	t.Run("Deck with number cards, modifiers and actions", func(t *testing.T) {
+		handNumbers := map[domain.NumberValue]struct{}{
+			5: {}, 10: {},
+		}
+
+		cards := []domain.Card{
+			{Type: domain.CardTypeNumber, Value: 5},
+			{Type: domain.CardTypeNumber, Value: 7},
+			{Type: domain.CardTypeModifier, ModifierType: domain.ModifierPlus2},
+			{Type: domain.CardTypeAction, ActionType: domain.ActionFreeze},
+		}
+		deck := domain.NewDeckFromCards(cards)
+
+		risk := deck.EstimateHitRisk(handNumbers)
+		// Expected: 1 risky number card out of 2 total number cards = 0.5 (50%)
+		expectedRisk := 0.5
+		if risk != expectedRisk {
+			t.Errorf("Expected risk %.2f (50%%), got %.2f (%.2f%%)", expectedRisk, risk, risk*100)
+		}
+	})
+
+	// Test with no number cards in deck (only modifiers and actions)
+	// Should have 0% bust rate since no number cards can cause a bust
+	t.Run("Deck with only modifiers and actions", func(t *testing.T) {
+		handNumbers := map[domain.NumberValue]struct{}{
+			5: {}, 10: {},
+		}
+
+		cards := []domain.Card{
+			{Type: domain.CardTypeModifier, ModifierType: domain.ModifierPlus2},
+			{Type: domain.CardTypeAction, ActionType: domain.ActionFreeze},
+		}
+		deck := domain.NewDeckFromCards(cards)
+
+		risk := deck.EstimateHitRisk(handNumbers)
+		expectedRisk := 0.0
+		if risk != expectedRisk {
+			t.Errorf("Expected risk %.2f (0%%), got %.2f (%.2f%%)", expectedRisk, risk, risk*100)
+		}
+	})
+
+	// Test with all number cards being risky
+	// Hand has [2, 3]
+	// Deck has only [Number 2, Number 3]
+	// All number cards can bust, so bust rate should be 100%
+	t.Run("All number cards are risky", func(t *testing.T) {
+		handNumbers := map[domain.NumberValue]struct{}{
+			2: {}, 3: {},
+		}
+
+		cards := []domain.Card{
+			{Type: domain.CardTypeNumber, Value: 2},
+			{Type: domain.CardTypeNumber, Value: 3},
+		}
+		deck := domain.NewDeckFromCards(cards)
+
+		risk := deck.EstimateHitRisk(handNumbers)
+		expectedRisk := 1.0
+		if risk != expectedRisk {
+			t.Errorf("Expected risk %.2f (100%%), got %.2f (%.2f%%)", expectedRisk, risk, risk*100)
+		}
+	})
+}
+
 func TestEstimateFlipThreeRisk(t *testing.T) {
 	// Scenario 1: High Risk
 	// Hand has 0, 1, 2. Deck has duplicates of 0, 1, 2.

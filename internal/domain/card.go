@@ -151,18 +151,25 @@ func (d *Deck) Draw() (Card, error) {
 }
 
 // EstimateHitRisk calculates the probability of busting based on the current hand.
+// Only number cards can cause a bust, so we only count number cards in the total.
 func (d *Deck) EstimateHitRisk(handNumbers map[NumberValue]struct{}) float64 {
-	total := len(d.Cards)
-	if total == 0 {
+	// Count total number cards in deck
+	totalNumberCards := 0
+	for _, count := range d.RemainingCounts {
+		totalNumberCards += count
+	}
+
+	if totalNumberCards == 0 {
 		return 0
 	}
 
+	// Count risky number cards (those matching hand)
 	riskCards := 0
 	for val := range handNumbers {
 		riskCards += d.RemainingCounts[val]
 	}
 
-	return float64(riskCards) / float64(total)
+	return float64(riskCards) / float64(totalNumberCards)
 }
 
 // NewDeckFromCards creates a new deck from a list of cards (e.g., discard pile).

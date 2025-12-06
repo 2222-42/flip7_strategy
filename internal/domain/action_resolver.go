@@ -16,8 +16,8 @@ func NewSecondChanceHandler() *SecondChanceHandler {
 
 // SecondChanceResult contains the result of processing a Second Chance card.
 type SecondChanceResult struct {
-	ShouldDiscard bool   // If true, the card should be discarded
-	AddToHand     bool   // If true, add to the original player's hand
+	ShouldDiscard bool    // If true, the card should be discarded
+	AddToHand     bool    // If true, add to the original player's hand
 	PassToPlayer  *Player // If set, pass to this player
 }
 
