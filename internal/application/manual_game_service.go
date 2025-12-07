@@ -16,6 +16,51 @@ import (
 	"flip7_strategy/internal/domain/strategy"
 )
 
+// GameMemento represents a snapshot of the game state.
+type GameMemento string
+
+// GameHistory manages the history of game states for undo/redo.
+type GameHistory struct {
+	mementos     []GameMemento
+	currentIndex int
+}
+
+// Push adds a new memento to the history, truncating any future redo states.
+func (h *GameHistory) Push(memento GameMemento) {
+	// If we are in the middle of the history (after undo), remove future states
+	if h.currentIndex < len(h.mementos)-1 {
+		h.mementos = h.mementos[:h.currentIndex+1]
+	}
+	h.mementos = append(h.mementos, memento)
+	h.currentIndex = len(h.mementos) - 1
+}
+
+// Current returns the current memento.
+func (h *GameHistory) Current() (GameMemento, bool) {
+	if h.currentIndex >= 0 && h.currentIndex < len(h.mementos) {
+		return h.mementos[h.currentIndex], true
+	}
+	return "", false
+}
+
+// Undo moves the pointer back and returns the previous memento.
+func (h *GameHistory) Undo() (GameMemento, bool) {
+	if h.currentIndex > 0 {
+		h.currentIndex--
+		return h.mementos[h.currentIndex], true
+	}
+	return "", false
+}
+
+// Redo moves the pointer forward and returns the next memento.
+func (h *GameHistory) Redo() (GameMemento, bool) {
+	if h.currentIndex < len(h.mementos)-1 {
+		h.currentIndex++
+		return h.mementos[h.currentIndex], true
+	}
+	return "", false
+}
+
 // gameStateWrapper wraps the game state with metadata for serialization.
 type gameStateWrapper struct {
 	Game              *domain.Game `json:"game"`
@@ -30,6 +75,7 @@ type ManualGameService struct {
 	Logger              logger.GameLogger
 	GameID              string
 	secondChanceHandler *domain.SecondChanceHandler
+	History             GameHistory
 }
 
 // manualFlipThreeCardSource implements FlipThreeCardSource for manual mode.
@@ -93,6 +139,7 @@ func NewManualGameService(reader *bufio.Reader, logger logger.GameLogger) *Manua
 func (s *ManualGameService) Run() {
 	fmt.Println("\n--- Manual Mode ---")
 	s.setupPlayers()
+	s.PushState() // Push initial state
 	s.gameLoop()
 }
 
@@ -258,11 +305,15 @@ func (s *ManualGameService) playRound() {
 				"dealer": dealer.Name,
 			})
 		}
+		// Push state at start of new round (stable point)
+		s.PushState()
 	} else {
 		fmt.Println("Resuming round...")
 	}
 
 	for !s.Game.CurrentRound.IsEnded {
+		// Label for restarting turn loop if undo/redo happens
+	StartOfTurn:
 		if len(s.Game.CurrentRound.ActivePlayers) == 0 {
 			s.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
 			break
@@ -322,15 +373,29 @@ func (s *ManualGameService) playRound() {
 		// Input loop for this turn (single action)
 		turnEnded := false
 		playerRemoved := false
+		shouldRestartTurn := false
 
 		for !turnEnded {
-			fmt.Print("Input (0-12, +N, x2, F, T, C, S): ")
+			fmt.Print("Input (0-12, +N, x2, F, T, C, S, U/UNDO, R/REDO): ")
 			input, err := s.Reader.ReadString('\n')
 			if err != nil {
 				fmt.Println("Error reading input. Exiting game.")
+				s.Game.IsCompleted = true
 				return
 			}
 			input = strings.TrimSpace(input)
+
+			// Check for Undo/Redo
+			if strings.EqualFold(input, "U") || strings.EqualFold(input, "UNDO") || input == "<" {
+				s.Undo()
+				shouldRestartTurn = true
+				break
+			}
+			if strings.EqualFold(input, "R") || strings.EqualFold(input, "REDO") || input == ">" {
+				s.Redo()
+				shouldRestartTurn = true
+				break
+			}
 
 			if strings.EqualFold(input, "S") {
 				// Validation: Cannot stay on first turn (empty hand) unless special conditions met
@@ -391,8 +456,14 @@ func (s *ManualGameService) playRound() {
 			}
 		}
 
+		if shouldRestartTurn {
+			goto StartOfTurn
+		}
+
 		// Check if round ended during this loop (Flip 7 or all stayed)
 		if s.Game.CurrentRound.IsEnded {
+			// Do NOT push state here to avoid "loop of death" on undo.
+			// Let gameLoop transition to new round and push there.
 			break
 		}
 
@@ -402,6 +473,12 @@ func (s *ManualGameService) playRound() {
 		}
 		// If player removed (Freeze action), the next player slides into the current index, so we don't increment.
 		// Busted players remain in ActivePlayers but are skipped via the status check at the start of the loop.
+
+		// Push state if action successful and round not ended
+		// We push AFTER updating the turn index so that the saved state points to the NEXT player's turn.
+		// This ensures that when we Undo, we return to the start of the turn that was just completed (or rather,
+		// we return to the state where the previous player has finished, and it is now the current player's turn).
+		s.PushState()
 	}
 }
 
@@ -860,6 +937,49 @@ func (s *ManualGameService) LoadState(encoded string) error {
 	s.Game = wrapper.Game
 	s.GameID = wrapper.GameID // Restore GameID for logging continuity
 	return nil
+}
+
+// PushState captures the current game state and pushes it to history.
+func (s *ManualGameService) PushState() {
+	if s.Game == nil {
+		return
+	}
+	state, err := s.SaveState()
+	if err != nil {
+		fmt.Printf("Warning: Failed to save state for history: %v\n", err)
+		return
+	}
+	s.History.Push(GameMemento(state))
+}
+
+// Undo reverts the game state to the previous memento.
+func (s *ManualGameService) Undo() {
+	memento, ok := s.History.Undo()
+	if !ok {
+		fmt.Println("Cannot undo: No previous state.")
+		return
+	}
+	if err := s.LoadState(string(memento)); err != nil {
+		fmt.Printf("Error undoing state: %v\n", err)
+		// Try to recover? At least we are at some state (likely the one we failed to leave or a broken one)
+		// But LoadState overwrites s.Game. if it fails mid-way...
+	} else {
+		fmt.Println("Undid last action.")
+	}
+}
+
+// Redo advances the game state to the next memento.
+func (s *ManualGameService) Redo() {
+	memento, ok := s.History.Redo()
+	if !ok {
+		fmt.Println("Cannot redo: No future state.")
+		return
+	}
+	if err := s.LoadState(string(memento)); err != nil {
+		fmt.Printf("Error redoing state: %v\n", err)
+	} else {
+		fmt.Println("Redid action.")
+	}
 }
 
 // RelinkPointers restores pointer relationships after deserialization.
