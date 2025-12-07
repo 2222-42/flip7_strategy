@@ -16,7 +16,8 @@ import (
 	"flip7_strategy/internal/domain/strategy"
 )
 
-// GameMemento represents a snapshot of the game state.
+// GameMemento represents a snapshot of the game state, encoded as a base64 string.
+// It is used by GameHistory to support undo/redo functionality.
 type GameMemento string
 
 // GameHistory manages the history of game states for undo/redo.
@@ -33,14 +34,6 @@ func (h *GameHistory) Push(memento GameMemento) {
 	}
 	h.mementos = append(h.mementos, memento)
 	h.currentIndex = len(h.mementos) - 1
-}
-
-// Current returns the current memento.
-func (h *GameHistory) Current() (GameMemento, bool) {
-	if h.currentIndex >= 0 && h.currentIndex < len(h.mementos) {
-		return h.mementos[h.currentIndex], true
-	}
-	return "", false
 }
 
 // Undo moves the pointer back and returns the previous memento.
@@ -167,6 +160,7 @@ func (s *ManualGameService) setupPlayers() {
 			fmt.Printf("Failed to load game: %v. Starting new game.\n", err)
 		} else {
 			fmt.Println("Game resumed successfully!")
+			s.History = GameHistory{} // Clear history for resumed game to avoid mix-ups
 			return
 		}
 	}
@@ -376,7 +370,7 @@ func (s *ManualGameService) playRound() {
 		shouldRestartTurn := false
 
 		for !turnEnded {
-			fmt.Print("Input (0-12, +N, x2, F, T, C, S, U/UNDO, R/REDO): ")
+			fmt.Print("Input (0-12, +N, x2, F, T, C, S, U/UNDO/<, R/REDO/>): ")
 			input, err := s.Reader.ReadString('\n')
 			if err != nil {
 				fmt.Println("Error reading input. Exiting game.")
@@ -961,8 +955,8 @@ func (s *ManualGameService) Undo() {
 	}
 	if err := s.LoadState(string(memento)); err != nil {
 		fmt.Printf("Error undoing state: %v\n", err)
-		// Try to recover? At least we are at some state (likely the one we failed to leave or a broken one)
-		// But LoadState overwrites s.Game. if it fails mid-way...
+		// Try to recover state index if loading fails
+		s.History.Redo()
 	} else {
 		fmt.Println("Undid last action.")
 	}
@@ -977,6 +971,8 @@ func (s *ManualGameService) Redo() {
 	}
 	if err := s.LoadState(string(memento)); err != nil {
 		fmt.Printf("Error redoing state: %v\n", err)
+		// Try to recover state index if loading fails
+		s.History.Undo()
 	} else {
 		fmt.Println("Redid action.")
 	}

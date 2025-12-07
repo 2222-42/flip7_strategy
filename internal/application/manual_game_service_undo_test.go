@@ -71,7 +71,6 @@ S
 S
 `
 	// Clean up input string to ensure newlines are correct
-	// Clean up input string to ensure newlines are correct
 	input = "\n" + strings.TrimSpace(input) + "\n"
 	// Note: We prepend a newline to satisfy the "Save Code" prompt, as TrimSpace removes the backtick's leading newline.
 
