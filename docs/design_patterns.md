@@ -90,3 +90,13 @@ To decouple game logic from reporting, we use an observer-like pattern for loggi
 - **Target Selectors**: `AggressiveStrategy` and others accept a `TargetSelector` interface, allowing for customizable targeting logic.
 - **GameService**: Takes a `Game` domain object, separating the state from the logic.
 - **Loggers**: `GameLogger` is injected into `ManualGameService`.
+
+## 8. Memento Pattern
+
+The **Memento Pattern** is used to capture and restore an object's internal state without violating encapsulation, enabling the Undo/Redo functionality in manual mode.
+
+### Implementation
+- **Memento**: `GameMemento` (in `internal/application/manual_game_service.go`) is a snapshot of the game state, serialized as a base64-encoded JSON string.
+- **Caretaker**: `GameHistory` manages a stack of `GameMemento` objects. It handles pushing new states, undoing (moving back in the stack), and redoing (moving forward).
+- **Originator**: `ManualGameService` creates mementos (`SaveState`/`PushState`) and restores them (`LoadState`).
+
