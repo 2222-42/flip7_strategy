@@ -63,7 +63,7 @@ func TestGameHistory_Undo(t *testing.T) {
 	}
 
 	// Case 2: Undo at start of history
-	m, ok = h.Undo()
+	_, ok = h.Undo()
 	if ok {
 		t.Error("Expected undo to fail at start of history")
 	}
@@ -91,7 +91,7 @@ func TestGameHistory_Redo(t *testing.T) {
 	}
 
 	// Case 2: Redo at end of history
-	m, ok = h.Redo()
+	_, ok = h.Redo()
 	if ok {
 		t.Error("Expected redo to fail at end of history")
 	}
