@@ -50,15 +50,38 @@ The **Facade Pattern** provides a simplified interface to a library, a framework
 - **GameService** (`internal/application/game_service.go`): Acts as a facade for the game logic. It manages the flow of rounds, turns, card drawing, and rule enforcement. Clients (like the `main` function or simulation tools) interact with `GameService` rather than managing individual `Player`, `Deck`, and `Round` objects directly.
 - **SimulationService** (`internal/application/simulation_service.go`): Provides a high-level interface to run thousands of games and collect statistics, abstracting away the details of running individual game loops.
 
-## 4. State Pattern (Implicit)
+## 4. Component Pattern (Target Selector)
 
-While not a strict class-based State pattern, the **State Pattern** concepts are used to manage the lifecycle of a player's hand.
+To separate the "Decide Hit/Stay" logic from the "Choose Target" logic, we use a component-style composition.
 
 ### Implementation
-- **HandStatus**: The `PlayerHand` struct tracks its state via `Status` (`active`, `stayed`, `busted`, `frozen`).
-- **Transitions**: The game logic transitions the hand between these states based on events (drawing a card, choosing to stay, getting frozen). The valid actions available to a player depend on this state.
+- **TargetSelector Interface**: Defines `ChooseTarget(action, candidates, self)`.
+- **Composition**: Strategies like `AggressiveStrategy` and `ProbabilisticStrategy` embed a `TargetSelector` (often via `CommonTargetChooser`). This allows, for example, an Aggressive Strategy to switch from "Random Targeting" to "Leader Targeting" without changing the core Hit/Stay logic, or vice-versa.
+- **Implementations**:
+    - `DefaultTargetSelector`: Hits leaders or statistically high-risk players.
+    - `RandomTargetSelector`: Chooses targets randomly (chaos).
+    - `RiskBasedTargetSelector`: Configurable risk thresholds for decision making.
 
-## 5. Dependency Injection
+## 5. State Pattern (Implicit & Explicit)
+
+The **State Pattern** concepts are used to manage the lifecycle of a player's hand and strategy adaptability.
+
+### Implementation
+- **HandStatus**: The `PlayerHand` struct tracks its state via `Status` (`active`, `stayed`, `busted`, `frozen`). The game logic transitions the hand between these states based on events.
+- **Adaptive Strategy**: `AdaptiveStrategy` explicitly acts as a state machine for AI behavior. It holds instances of other strategies (e.g., `Aggressive` and `ExpectedValue`) and delegates to one of them depending on the global game state (e.g., if an opponent is close to winning).
+
+## 6. Observer / Logger
+
+To decouple game logic from reporting, we use an observer-like pattern for logging.
+
+### Implementation
+- **GameLogger Interface**: Defines a contract for recording events (`Log(...)`).
+- **Implementations**:
+    - `CSVLogger`: Writes events to a structured CSV file for analysis.
+    - `ConsoleLogger` (Implicit): `GameService` prints to stdout if not silent.
+- **Usage**: `ManualGameService` logs events without knowing the details of the storage mechanism.
+
+## 7. Dependency Injection
 
 **Dependency Injection** is used to decouple components.
 
@@ -66,3 +89,4 @@ While not a strict class-based State pattern, the **State Pattern** concepts are
 - **Strategies**: Strategies are injected into `Player` objects at creation time.
 - **Target Selectors**: `AggressiveStrategy` and others accept a `TargetSelector` interface, allowing for customizable targeting logic.
 - **GameService**: Takes a `Game` domain object, separating the state from the logic.
+- **Loggers**: `GameLogger` is injected into `ManualGameService`.
