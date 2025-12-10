@@ -57,8 +57,9 @@ To separate the "Decide Hit/Stay" logic from the "Choose Target" logic, we use a
 ### Implementation
 - **TargetSelector Interface**: Defines `ChooseTarget(action, candidates, self)`.
 - **Composition**: Strategies like `AggressiveStrategy` and `ProbabilisticStrategy` embed a `TargetSelector` (often via `CommonTargetChooser`). This allows, for example, an Aggressive Strategy to switch from "Random Targeting" to "Leader Targeting" without changing the core Hit/Stay logic, or vice-versa.
+    - Note: `CommonTargetChooser` is deprecated in favor of `DefaultTargetSelector`.
 - **Implementations**:
-    - `DefaultTargetSelector`: Hits leaders or statistically high-risk players.
+    - `DefaultTargetSelector`: Uses action-specific logic (e.g., targets high-risk opponents for FlipThree, weakest for GiveSecondChance).
     - `RandomTargetSelector`: Chooses targets randomly (chaos).
     - `RiskBasedTargetSelector`: Configurable risk thresholds for decision making.
 
@@ -78,7 +79,7 @@ To decouple game logic from reporting, we use an observer-like pattern for loggi
 - **GameLogger Interface**: Defines a contract for recording events (`Log(...)`).
 - **Implementations**:
     - `CSVLogger`: Writes events to a structured CSV file for analysis.
-    - `ConsoleLogger` (Implicit): `GameService` prints to stdout if not silent.
+    - Note: `GameService` prints to stdout when not in silent mode, but this is not an implementation of the `GameLogger` interface.
 - **Usage**: `ManualGameService` logs events without knowing the details of the storage mechanism.
 
 ## 7. Dependency Injection
