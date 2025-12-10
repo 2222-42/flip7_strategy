@@ -329,7 +329,7 @@ func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
 }
 
 func TestChooseTarget_FlipThree_HighRisk(t *testing.T) {
-	s := strategy.CommonTargetChooser{}
+	s := strategy.DefaultTargetSelector{}
 	self := domain.NewPlayer("Self", nil)
 
 	// Opponent 1: High Score (150), Low Risk (Hand empty)
