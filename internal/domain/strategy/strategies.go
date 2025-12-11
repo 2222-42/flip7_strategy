@@ -134,42 +134,22 @@ func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, 
 	return domain.TurnChoiceHit
 }
 
-// CommonTargetChooser implements shared target selection logic.
-// Deprecated: Use DefaultTargetSelector instead.
-type CommonTargetChooser struct {
-	TargetSelector
-}
-
-func (c *CommonTargetChooser) SetDeck(d *domain.Deck) {
-	if c.TargetSelector == nil {
-		c.TargetSelector = NewDefaultTargetSelector()
-	}
-	c.TargetSelector.SetDeck(d)
-}
-
-func (c *CommonTargetChooser) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
-	if c.TargetSelector == nil {
-		c.TargetSelector = NewDefaultTargetSelector()
-	}
-	return c.TargetSelector.ChooseTarget(action, candidates, self)
-}
-
 // ProbabilisticStrategy uses expected value (simplified).
 type ProbabilisticStrategy struct {
-	CommonTargetChooser
+	TargetSelector
 }
 
 // NewProbabilisticStrategy returns a new ProbabilisticStrategy instance with default target selector.
 func NewProbabilisticStrategy() *ProbabilisticStrategy {
 	return &ProbabilisticStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+		TargetSelector: NewDefaultTargetSelector(),
 	}
 }
 
 // NewProbabilisticStrategyWithSelector returns a new ProbabilisticStrategy instance with a custom target selector.
 func NewProbabilisticStrategyWithSelector(selector TargetSelector) *ProbabilisticStrategy {
 	return &ProbabilisticStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
+		TargetSelector: selector,
 	}
 }
 
@@ -240,22 +220,22 @@ const DefaultHeuristicThreshold = 27
 
 // HeuristicStrategy stops when sum of number cards >= Threshold.
 type HeuristicStrategy struct {
-	CommonTargetChooser
+	TargetSelector
 	Threshold int
 }
 
 func NewHeuristicStrategy(threshold int) *HeuristicStrategy {
 	return &HeuristicStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
-		Threshold:           threshold,
+		TargetSelector: NewDefaultTargetSelector(),
+		Threshold:      threshold,
 	}
 }
 
 // NewHeuristicStrategyWithSelector returns a new HeuristicStrategy instance with a custom target selector.
 func NewHeuristicStrategyWithSelector(threshold int, selector TargetSelector) *HeuristicStrategy {
 	return &HeuristicStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
-		Threshold:           threshold,
+		TargetSelector: selector,
+		Threshold:      threshold,
 	}
 }
 

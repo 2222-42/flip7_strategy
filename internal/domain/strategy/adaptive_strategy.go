@@ -8,7 +8,6 @@ import (
 // If any opponent has reached the winning threshold (200 points), it becomes Aggressive.
 // Otherwise, it plays conservatively using Expected Value.
 type AdaptiveStrategy struct {
-	CommonTargetChooser
 	Aggressive    *AggressiveStrategy
 	ExpectedValue *ExpectedValueStrategy
 }
@@ -25,7 +24,6 @@ func (s *AdaptiveStrategy) Name() string {
 }
 
 func (s *AdaptiveStrategy) SetDeck(deck *domain.Deck) {
-	s.CommonTargetChooser.SetDeck(deck)
 	s.Aggressive.SetDeck(deck)
 	s.ExpectedValue.SetDeck(deck)
 }

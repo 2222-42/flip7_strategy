@@ -6,20 +6,20 @@ import (
 
 // ExpectedValueStrategy calculates the expected value of the next hit.
 type ExpectedValueStrategy struct {
-	CommonTargetChooser
+	TargetSelector
 }
 
 // NewExpectedValueStrategy returns a new ExpectedValueStrategy instance.
 func NewExpectedValueStrategy() *ExpectedValueStrategy {
 	return &ExpectedValueStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: NewDefaultTargetSelector()},
+		TargetSelector: NewDefaultTargetSelector(),
 	}
 }
 
 // NewExpectedValueStrategyWithSelector returns a new ExpectedValueStrategy instance with a custom target selector.
 func NewExpectedValueStrategyWithSelector(selector TargetSelector) *ExpectedValueStrategy {
 	return &ExpectedValueStrategy{
-		CommonTargetChooser: CommonTargetChooser{TargetSelector: selector},
+		TargetSelector: selector,
 	}
 }
 

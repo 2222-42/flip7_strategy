@@ -336,3 +336,45 @@ Win rates for Strategy A (Row) vs Strategy B (Column).
 The fix to `EstimateHitRisk` and subsequent optimization has refined the strategy landscape.
 - **Adaptive Strategy** is the best general-purpose strategy (Multiplayer).
 - **Expected Value Strategy** (with Risk Threshold 0.80) is the best duelist (1v1).
+
+## Latest Simulation Run (Refactor TargetSelector)
+
+**Date**: 2025-12-10
+**Changes**: Replaced deprecated `CommonTargetChooser` struct with direct usage of `TargetSelector` interface. Functional logic should remain identical.
+
+### 1. Multiplayer Evaluation (Win Rates)
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | :--- | :--- | :--- | :--- |
+| **Adaptive** | **19.45%** | 19.65% | 19.90% | 19.83% |
+| **ExpectedValue** | 18.30% | 19.90% | 19.15% | **22.15%** |
+| **Heuristic-27** | 15.30% | 18.00% | **20.35%** | 19.83% |
+| **Aggressive** | **19.50%** | **19.95%** | 18.10% | 18.55% |
+| **Probabilistic** | 17.30% | 16.40% | 18.15% | 14.73% |
+| **Cautious** | 10.15% | 6.10% | 4.35% | 4.90% |
+
+*Analysis*:
+- **Expected Value** had a standout performance in 5-player games.
+- **Aggressive** performed notably well in 2 and 3 player games, slightly edging out Adaptive in 3-player.
+- Field is very competitive.
+
+### 2. Strategy Combination Evaluation (1vs1 Matchups)
+
+Win rates for Strategy A (Row) vs Strategy B (Column).
+
+| vs | Cautious | Aggressive | Probabilistic | Heuristic-27 | ExpectedValue | Adaptive |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Cautious** | - | 34.45% | 22.50% | 25.85% | 21.35% | 22.30% |
+| **Aggressive** | 65.55% | - | 46.25% | 47.35% | 43.40% | 43.85% |
+| **Probabilistic** | **77.50%** | **53.75%** | - | 48.65% | 45.60% | 45.75% |
+| **Heuristic-27** | **74.15%** | **52.65%** | **51.35%** | - | 48.15% | 49.15% |
+| **ExpectedValue** | **78.65%** | **56.60%** | **54.40%** | **51.85%** | - | 49.95% |
+| **Adaptive** | **77.70%** | **56.15%** | **54.25%** | **50.85%** | **50.05%** | - |
+
+**Key Findings**:
+- **Adaptive vs ExpectedValue**: Adaptive (50.05%) vs ExpectedValue (49.95%). This is a dead heat, with Adaptive effectively tying/slightly reclaiming the lead from the previous run.
+- **Stability**: The refactor confirms no regression in strategy performance, with results falling within expected variance of the previous "Bust Rate Fix" run.
+
+## Overall Conclusion (Current State)
+
+The strategy engine is stable. **Adaptive Strategy** and **Expected Value Strategy** are the two dominant high-level strategies, effectively equal in 1v1 strength (trading wins within margin of error) and both performing strongly in multiplayer. **Aggressive** and **Heuristic-27** remain competitive spoilers.
