@@ -24,7 +24,6 @@ func (s *AdaptiveStrategy) Name() string {
 }
 
 func (s *AdaptiveStrategy) SetDeck(deck *domain.Deck) {
-
 	s.Aggressive.SetDeck(deck)
 	s.ExpectedValue.SetDeck(deck)
 }
