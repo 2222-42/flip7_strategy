@@ -375,17 +375,6 @@ func (s *ManualGameService) playRound() {
 			}
 			input = strings.TrimSpace(input)
 
-			// Check for commands
-			if strings.EqualFold(input, "SAVE") {
-				code, err := s.SaveState()
-				if err == nil {
-					fmt.Printf("\n[Save Code]: %s\n", code)
-				} else {
-					fmt.Printf("\nFailed to generate save code: %v\n", err)
-				}
-				continue
-			}
-
 			// Check for Undo/Redo
 			if strings.EqualFold(input, "U") || strings.EqualFold(input, "UNDO") || input == "<" {
 				s.Undo()
@@ -396,6 +385,17 @@ func (s *ManualGameService) playRound() {
 				s.Redo()
 				shouldRestartTurn = true
 				break
+			}
+
+			// Check for SAVE command
+			if strings.EqualFold(input, "SAVE") {
+				code, err := s.SaveState()
+				if err == nil {
+					fmt.Printf("\n[Save Code]: %s\n", code)
+				} else {
+					fmt.Printf("\nFailed to generate save code: %v\n", err)
+				}
+				continue
 			}
 
 			if strings.EqualFold(input, "S") {
