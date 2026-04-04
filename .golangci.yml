@@ -5,23 +5,22 @@ run:
   tests: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     - durationcheck
     - forcetypeassert
-    - gofmt
-    - goimports
     - misspell
     - revive
 
 formatters:
+  enable:
+    - gofmt
+    - goimports
   settings:
     gofumpt:
       module-path: github.com/daioh/flip7_strategy
