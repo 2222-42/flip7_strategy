@@ -16,6 +16,17 @@ linters:
     - forcetypeassert
     - misspell
     - revive
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - forcetypeassert
+        path: _test\.go
 
 formatters:
   enable:
@@ -25,19 +36,3 @@ formatters:
     gofumpt:
       module-path: github.com/daioh/flip7_strategy
       extra-rules: true
-
-exclusions:
-  generated: lax
-  presets:
-    - comments
-    - common-false-positives
-    - legacy
-    - std-error-handling
-  rules:
-    - linters:
-        - forcetypeassert
-      path: _test\.go
-
-issues:
-  max-same-issues: 0
-  exclude-use-default: false
