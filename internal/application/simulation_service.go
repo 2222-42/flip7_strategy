@@ -28,9 +28,9 @@ func (s *SimulationService) RunMonteCarlo(n int) {
 		// Create players
 		p1 := domain.NewPlayer("Alice (Cautious)", &strategy.CautiousStrategy{})
 		p2 := domain.NewPlayer("Bob (Aggressive)", strategy.NewAggressiveStrategy())
-		p3 := domain.NewPlayer("Charlie (Probabilistic)", &strategy.ProbabilisticStrategy{})
+		p3 := domain.NewPlayer("Charlie (Probabilistic)", strategy.NewProbabilisticStrategy())
 		p4 := domain.NewPlayer("Dave (Heuristic)", strategy.NewHeuristicStrategy(strategy.DefaultHeuristicThreshold))
-		p5 := domain.NewPlayer("Eve (ExpectedValue)", &strategy.ExpectedValueStrategy{})
+		p5 := domain.NewPlayer("Eve (ExpectedValue)", strategy.NewExpectedValueStrategy(0.0))
 		p6 := domain.NewPlayer("Frank (Adaptive)", strategy.NewAdaptiveStrategy())
 
 		players := []*domain.Player{p1, p2, p3, p4, p5, p6}
@@ -71,7 +71,7 @@ func (s *SimulationService) RunHeuristicOptimization(gamesPerThreshold int) {
 		for i := 0; i < gamesPerThreshold; i++ {
 			p1 := domain.NewPlayer("Alice", &strategy.CautiousStrategy{})
 			p2 := domain.NewPlayer("Bob", strategy.NewAggressiveStrategy())
-			p3 := domain.NewPlayer("Charlie", &strategy.ProbabilisticStrategy{})
+			p3 := domain.NewPlayer("Charlie", strategy.NewProbabilisticStrategy())
 			p4 := domain.NewPlayer("Dave", strategy.NewHeuristicStrategy(threshold))
 
 			players := []*domain.Player{p1, p2, p3, p4}
@@ -115,9 +115,9 @@ func (s *SimulationService) RunSinglePlayerOptimization(n int) {
 	}{
 		{"Cautious", &strategy.CautiousStrategy{}},
 		{"Aggressive", strategy.NewAggressiveStrategy()},
-		{"Probabilistic", &strategy.ProbabilisticStrategy{}},
+		{"Probabilistic", strategy.NewProbabilisticStrategy()},
 		{"Heuristic-27", strategy.NewHeuristicStrategy(27)},
-		{"ExpectedValue", &strategy.ExpectedValueStrategy{}},
+		{"ExpectedValue", strategy.NewExpectedValueStrategy(0.0)},
 		{"Adaptive", strategy.NewAdaptiveStrategy()},
 	}
 
@@ -169,7 +169,7 @@ func (s *SimulationService) RunMultiplayerEvaluation(n int) {
 		strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.65)),
 		strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70)),
 		strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65)),
-		strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.80)),
+		strategy.NewExpectedValueStrategyWithSelector(0.0, strategy.NewRiskBasedTargetSelector(0.80)),
 		strategy.NewAdaptiveStrategy(),
 	}
 
@@ -223,7 +223,7 @@ func (s *SimulationService) RunStrategyCombinationEvaluation(n int) {
 		{"Aggressive", strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.65))},
 		{"Probabilistic", strategy.NewProbabilisticStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.70))},
 		{"Heuristic-27", strategy.NewHeuristicStrategyWithSelector(27, strategy.NewRiskBasedTargetSelector(0.65))},
-		{"ExpectedValue", strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(0.80))},
+		{"ExpectedValue", strategy.NewExpectedValueStrategyWithSelector(0.0, strategy.NewRiskBasedTargetSelector(0.80))},
 		{"Adaptive", strategy.NewAdaptiveStrategy()},
 	}
 
@@ -292,7 +292,7 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 			// 5 target strategies + 3 standard = 8 players
 			players = append(players, domain.NewPlayer("Standard-Cautious", &strategy.CautiousStrategy{}))
 			players = append(players, domain.NewPlayer("Standard-Aggressive", strategy.NewAggressiveStrategy()))
-			players = append(players, domain.NewPlayer("Standard-Probabilistic", &strategy.ProbabilisticStrategy{}))
+			players = append(players, domain.NewPlayer("Standard-Probabilistic", strategy.NewProbabilisticStrategy()))
 
 			game := domain.NewGame(players)
 			svc := NewGameService(game)
@@ -330,7 +330,7 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 	var evStrategies []StrategyConfig
 	for _, t := range thresholds {
 		name := fmt.Sprintf("EV-Risk-%.2f", t)
-		evStrategies = append(evStrategies, StrategyConfig{Name: name, Strat: strategy.NewExpectedValueStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
+		evStrategies = append(evStrategies, StrategyConfig{Name: name, Strat: strategy.NewExpectedValueStrategyWithSelector(0.0, strategy.NewRiskBasedTargetSelector(t))})
 	}
 	runBatch("Expected Value", evStrategies)
 
@@ -357,4 +357,56 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 		aggrStrategies = append(aggrStrategies, StrategyConfig{Name: name, Strat: strategy.NewAggressiveStrategyWithSelector(strategy.NewRiskBasedTargetSelector(t))})
 	}
 	runBatch("Aggressive", aggrStrategies)
+}
+
+func (s *SimulationService) RunEEVOptimization(gamesPerTolerance int) {
+	fmt.Printf("Running EEV Optimization (%d games per threshold)...\n", gamesPerTolerance)
+	fmt.Println("RiskTolerance | Win Rate")
+	fmt.Println("--------------|----------")
+
+	type Result struct {
+		RiskTolerance float64
+		WinRate       float64
+	}
+	var results []Result
+
+	// Testing more risky (negative) to more conservative (positive)
+	tolerances := []float64{-5.0, -3.0, -1.0, 0.0, 1.0, 3.0, 5.0}
+
+	for _, rt := range tolerances {
+		wins := 0.0
+		for i := 0; i < gamesPerTolerance; i++ {
+			p1 := domain.NewPlayer("Alice (Cautious)", &strategy.CautiousStrategy{})
+			p2 := domain.NewPlayer("Bob (Aggressive)", strategy.NewAggressiveStrategy())
+			p3 := domain.NewPlayer("Charlie (Probabilistic)", strategy.NewProbabilisticStrategy())
+			p4 := domain.NewPlayer(fmt.Sprintf("Dave (EEV:%.1f)", rt), strategy.NewExpectedValueStrategy(rt))
+
+			players := []*domain.Player{p1, p2, p3, p4}
+			game := domain.NewGame(players)
+
+			svc := NewGameService(game)
+			svc.Silent = true
+			svc.RunGame()
+
+			for _, winner := range game.Winners {
+				if winner.ID == p4.ID {
+					wins += 1.0 / float64(len(game.Winners))
+				}
+			}
+		}
+		winRate := (wins / float64(gamesPerTolerance)) * 100
+		fmt.Printf("%13.1f | %7.2f%%\n", rt, winRate)
+		results = append(results, Result{RiskTolerance: rt, WinRate: winRate})
+	}
+
+	// Find best
+	bestRt := 0.0
+	maxWinRate := -1.0
+	for _, res := range results {
+		if res.WinRate > maxWinRate {
+			maxWinRate = res.WinRate
+			bestRt = res.RiskTolerance
+		}
+	}
+	fmt.Printf("\nBest RiskTolerance: %.1f (Win Rate: %.2f%%)\n", bestRt, maxWinRate)
 }

@@ -302,7 +302,7 @@ func TestNewHeuristicStrategyWithSelector(t *testing.T) {
 
 func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
 	customSelector := strategy.NewRiskBasedTargetSelector(0.75)
-	strat := strategy.NewExpectedValueStrategyWithSelector(customSelector)
+	strat := strategy.NewExpectedValueStrategyWithSelector(0.0, customSelector)
 
 	if strat == nil {
 		t.Fatal("Expected strategy to be initialized")

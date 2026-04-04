@@ -8,7 +8,7 @@ import (
 )
 
 func TestExpectedValueStrategy_Decide(t *testing.T) {
-	s := &strategy.ExpectedValueStrategy{}
+	s := strategy.NewExpectedValueStrategy(0.0)
 
 	// Helper to create a deck with specific cards
 	createDeck := func(cards []domain.Card) *domain.Deck {
