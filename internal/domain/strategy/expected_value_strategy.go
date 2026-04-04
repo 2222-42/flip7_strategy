@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	"fmt"
 	"flip7_strategy/internal/domain"
+	"fmt"
 )
 
 // ExpectedValueStrategy calculates the Expected Exploration Value (EEV) of the next hit.
@@ -12,7 +12,7 @@ type ExpectedValueStrategy struct {
 	RiskTolerance float64 // How much negative EEV we are willing to accept. Negative values mean more risky.
 }
 
-// NewExpectedValueStrategy returns a new ExpectedValueStrategy instance with default risk tolerance (0.0).
+// NewExpectedValueStrategy returns a new ExpectedValueStrategy instance with the provided risk tolerance (e.g. 0.0 for default EV strategy).
 func NewExpectedValueStrategy(riskTolerance float64) *ExpectedValueStrategy {
 	return &ExpectedValueStrategy{
 		TargetSelector: NewDefaultTargetSelector(),
@@ -68,11 +68,7 @@ func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 		}
 	}
 
-	if totalCards == 0 {
-		return domain.TurnChoiceStay
-	}
-
-	// Upside: Expected average gain from drawing a non-busting card.
+	// Upside: Expected gain considering all remaining cards (busts contribute 0 gain).
 	upside := expectedGainSum / float64(totalCards)
 
 	// Downside: Expected loss from busting.
@@ -81,7 +77,7 @@ func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 	// Expected Exploration Value (EEV)
 	eev := upside - downside
 
-	// Hit if EEV plus our risk tolerance is greater than 0.
+	// Hit if EEV is greater than our risk tolerance threshold.
 	// Positive RiskTolerance makes us more conservative (forces EEV > positive threshold).
 	// Negative RiskTolerance makes us more risky (allows hitting even when EEV is slightly negative).
 	if eev > s.RiskTolerance {
@@ -90,4 +86,3 @@ func (s *ExpectedValueStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHan
 
 	return domain.TurnChoiceStay
 }
-

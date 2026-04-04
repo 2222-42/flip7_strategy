@@ -1,23 +1,44 @@
 version: "2"
+
+run:
+  timeout: 3m
+  tests: true
+
 linters:
+  disable-all: true
   enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
     - durationcheck
     - forcetypeassert
-  exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    rules:
-      - linters:
-          - forcetypeassert
-        path: _test\.go
-issues:
-  max-same-issues: 0
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+
 formatters:
   settings:
     gofumpt:
       module-path: github.com/daioh/flip7_strategy
       extra-rules: true
+
+exclusions:
+  generated: lax
+  presets:
+    - comments
+    - common-false-positives
+    - legacy
+    - std-error-handling
+  rules:
+    - linters:
+        - forcetypeassert
+      path: _test\.go
+
+issues:
+  max-same-issues: 0
+  exclude-use-default: false

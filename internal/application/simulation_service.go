@@ -360,7 +360,7 @@ func (s *SimulationService) RunTargetSelectionSimulation(n int) {
 }
 
 func (s *SimulationService) RunEEVOptimization(gamesPerTolerance int) {
-	fmt.Printf("Running EEV Optimization (%d games per threshold)...\n", gamesPerTolerance)
+	fmt.Printf("Running EEV Optimization (%d games per risk tolerance)...\n", gamesPerTolerance)
 	fmt.Println("RiskTolerance | Win Rate")
 	fmt.Println("--------------|----------")
 

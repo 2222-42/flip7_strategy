@@ -151,4 +151,3 @@ func TestPromptForTargetSuggestionLogic(t *testing.T) {
 		}
 	})
 }
-

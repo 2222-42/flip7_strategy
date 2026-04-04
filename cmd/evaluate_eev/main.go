@@ -11,8 +11,8 @@ func main() {
 	startTime := time.Now()
 
 	svc := application.NewSimulationService()
-	
-	// Fast test: 10000 games per threshold
+
+	// Fast test: 1500 games per risk tolerance
 	// The problem in Incan Gold was that conservative play loses to risky play.
 	svc.RunEEVOptimization(1500)
 
