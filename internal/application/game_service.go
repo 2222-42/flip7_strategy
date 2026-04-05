@@ -17,7 +17,7 @@ type gameServiceFlipThreeCardSource struct {
 	service *GameService
 }
 
-func (gs *gameServiceFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+func (gs *gameServiceFlipThreeCardSource) GetNextCard(_ int, _ *domain.Player) (domain.Card, error) {
 	return gs.service.DrawCard()
 }
 
