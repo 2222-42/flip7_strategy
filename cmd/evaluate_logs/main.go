@@ -29,7 +29,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to open file: %v\n", err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	reader := csv.NewReader(file)
 

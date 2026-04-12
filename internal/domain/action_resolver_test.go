@@ -12,7 +12,7 @@ type mockTargetSelector struct {
 	candidatesReceived []*domain.Player
 }
 
-func (m *mockTargetSelector) SelectTarget(actionType domain.ActionType, candidates []*domain.Player, actor *domain.Player) *domain.Player {
+func (m *mockTargetSelector) SelectTarget(_ domain.ActionType, candidates []*domain.Player, _ *domain.Player) *domain.Player {
 	m.candidatesReceived = candidates
 	return m.targetToReturn
 }
