@@ -15,7 +15,7 @@ type mockFlipThreeCardSource struct {
 	err   error
 }
 
-func (m *mockFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+func (m *mockFlipThreeCardSource) GetNextCard(_ int, _ *domain.Player) (domain.Card, error) {
 	if m.err != nil {
 		return domain.Card{}, m.err
 	}
@@ -33,12 +33,12 @@ type mockFlipThreeCardProcessor struct {
 	processError   error
 }
 
-func (m *mockFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+func (m *mockFlipThreeCardProcessor) ProcessImmediateCard(_ *domain.Player, card domain.Card) error {
 	m.immediateCards = append(m.immediateCards, card)
 	return m.processError
 }
 
-func (m *mockFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+func (m *mockFlipThreeCardProcessor) ProcessQueuedAction(_ *domain.Player, card domain.Card) error {
 	m.queuedCards = append(m.queuedCards, card)
 	return m.processError
 }

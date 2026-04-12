@@ -17,7 +17,7 @@ func TestAnalyze_EmptyRecords(t *testing.T) {
 
 	analyze([]LogRecord{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stdout: %v", err)
@@ -70,7 +70,7 @@ func TestAnalyze_MultipleRecords(t *testing.T) {
 
 	analyze(records)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stdout: %v", err)
@@ -116,7 +116,7 @@ func TestMain_NoArguments(t *testing.T) {
 
 	main()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stdout: %v", err)
@@ -143,7 +143,7 @@ func TestMain_FileNotFound(t *testing.T) {
 
 	main()
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = oldStderr
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stderr: %v", err)
@@ -186,7 +186,7 @@ func TestMain_ValidCSVFile(t *testing.T) {
 
 	main()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stdout: %v", err)
@@ -247,8 +247,8 @@ incomplete,row
 
 	main()
 
-	wErr.Close()
-	wOut.Close()
+	_ = wErr.Close()
+	_ = wOut.Close()
 	os.Stderr = oldStderr
 	os.Stdout = oldStdout
 	if _, err := bufStderr.ReadFrom(rErr); err != nil {
@@ -305,8 +305,8 @@ func TestMain_InvalidJSON(t *testing.T) {
 
 	main()
 
-	wErr.Close()
-	wOut.Close()
+	_ = wErr.Close()
+	_ = wOut.Close()
 	os.Stderr = oldStderr
 	os.Stdout = oldStdout
 	if _, err := bufStderr.ReadFrom(rErr); err != nil {
@@ -353,7 +353,7 @@ func TestMain_EmptyFile(t *testing.T) {
 
 	main()
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = oldStderr
 	if _, err := buf.ReadFrom(r); err != nil {
 		t.Fatalf("Failed to read captured stderr: %v", err)

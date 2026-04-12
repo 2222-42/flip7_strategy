@@ -14,10 +14,10 @@ type MockStrategy struct {
 }
 
 func (s *MockStrategy) Name() string { return "Mock" }
-func (s *MockStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, score int, others []*domain.Player) domain.TurnChoice {
+func (s *MockStrategy) Decide(_ *domain.Deck, _ *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
 	return s.DecideResult
 }
-func (s *MockStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+func (s *MockStrategy) ChooseTarget(_ domain.ActionType, candidates []*domain.Player, _ *domain.Player) *domain.Player {
 	if s.ChooseTargetResult != nil {
 		return s.ChooseTargetResult
 	}

@@ -11,7 +11,7 @@ import (
 // MockLogger for testing prevents nil pointer dereferences if logging is attempted
 type MockLogger struct{}
 
-func (m *MockLogger) Log(gameID, round, playerID, eventType string, details map[string]interface{}) {
+func (m *MockLogger) Log(_, _, _, _ string, _ map[string]interface{}) {
 }
 
 func (m *MockLogger) Close() {
