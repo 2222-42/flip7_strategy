@@ -13,7 +13,7 @@ func TestStrategies_HitWithSecondChance(t *testing.T) {
 		strategy.NewAggressiveStrategy(),
 		&strategy.ProbabilisticStrategy{},
 		strategy.NewHeuristicStrategy(27),
-		strategy.NewExpectedValueStrategy(),
+		strategy.NewExpectedValueStrategy(0.0),
 		strategy.NewAdaptiveStrategy(),
 	}
 

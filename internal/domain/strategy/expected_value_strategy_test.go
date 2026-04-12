@@ -8,7 +8,7 @@ import (
 )
 
 func TestExpectedValueStrategy_Decide(t *testing.T) {
-	s := &strategy.ExpectedValueStrategy{}
+	s := strategy.NewExpectedValueStrategy(0.0)
 
 	// Helper to create a deck with specific cards
 	createDeck := func(cards []domain.Card) *domain.Deck {
@@ -82,4 +82,80 @@ func TestExpectedValueStrategy_Decide(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExpectedValueStrategy_Decide_RiskTolerance(t *testing.T) {
+	createDeck := func(cards []domain.Card) *domain.Deck {
+		return domain.NewDeckFromCards(cards)
+	}
+
+	// Scenario where EV = -1
+	// Hand: 10
+	// Deck: 10 (bust, gain 0 - downside 10/2 = -5), 8 (no bust, gain 8 - upside 8/2 = +4)
+	// Upside = 4, Downside = 5 => EEV = -1.
+	deckCards := []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 10},
+		{Type: domain.CardTypeNumber, Value: 8},
+	}
+
+	t.Run("Negative EEV but high risk tolerance (takes risk)", func(t *testing.T) {
+		s := strategy.NewExpectedValueStrategy(-2.0)
+		deck := createDeck(deckCards)
+		hand := domain.NewPlayerHand()
+		hand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: 10})
+
+		// EEV is -1. s.RiskTolerance is -2. -1 > -2 is true, so it hits.
+		choice := s.Decide(deck, hand, 0, nil)
+		if choice != domain.TurnChoiceHit {
+			t.Errorf("Expected Hit because EEV (-1) > RiskTolerance (-2), got %v", choice)
+		}
+	})
+
+	t.Run("Negative EEV with 0 tolerance (stays)", func(t *testing.T) {
+		s := strategy.NewExpectedValueStrategy(0.0)
+		deck := createDeck(deckCards)
+		hand := domain.NewPlayerHand()
+		hand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: 10})
+
+		// EEV is -1. s.RiskTolerance is 0. -1 > 0 is false, so it stays.
+		choice := s.Decide(deck, hand, 0, nil)
+		if choice != domain.TurnChoiceStay {
+			t.Errorf("Expected Stay because EEV (-1) is not > 0, got %v", choice)
+		}
+	})
+
+	// Scenario where EEV = +1
+	// Hand: 5
+	// Deck: 5 (bust, gain 0 - downside 5/2 = -2.5), 7 (no bust, gain 7 - upside 7/2 = +3.5)
+	// Upside = 3.5, Downside = 2.5 => EEV = +1.
+	deckCardsPositive := []domain.Card{
+		{Type: domain.CardTypeNumber, Value: 5},
+		{Type: domain.CardTypeNumber, Value: 7},
+	}
+
+	t.Run("Positive EEV but conservative tolerance (stays)", func(t *testing.T) {
+		s := strategy.NewExpectedValueStrategy(2.0)
+		deck := createDeck(deckCardsPositive)
+		hand := domain.NewPlayerHand()
+		hand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: 5})
+
+		// EEV is 1. s.RiskTolerance is 2. 1 > 2 is false, so it stays.
+		choice := s.Decide(deck, hand, 0, nil)
+		if choice != domain.TurnChoiceStay {
+			t.Errorf("Expected Stay because EEV (1) is not > RiskTolerance (2), got %v", choice)
+		}
+	})
+
+	t.Run("Positive EEV with 0 tolerance (hits)", func(t *testing.T) {
+		s := strategy.NewExpectedValueStrategy(0.0)
+		deck := createDeck(deckCardsPositive)
+		hand := domain.NewPlayerHand()
+		hand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: 5})
+
+		// EEV is 1. s.RiskTolerance is 0. 1 > 0 is true, so it hits.
+		choice := s.Decide(deck, hand, 0, nil)
+		if choice != domain.TurnChoiceHit {
+			t.Errorf("Expected Hit because EEV (1) > 0, got %v", choice)
+		}
+	})
 }

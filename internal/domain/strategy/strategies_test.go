@@ -181,9 +181,9 @@ func TestHeuristicStrategy_ChooseTarget(t *testing.T) {
 func TestNewAggressiveStrategyWithSelector(t *testing.T) {
 	// Test that the custom selector is properly initialized
 	customSelector := strategy.NewRiskBasedTargetSelector(0.9)
-	strat := strategy.NewAggressiveStrategyWithSelector(customSelector)
+	strategyInstance := strategy.NewAggressiveStrategyWithSelector(customSelector)
 
-	if strat == nil {
+	if strategyInstance == nil {
 		t.Fatal("Expected strategy to be initialized")
 	}
 
@@ -229,10 +229,10 @@ func TestNewAggressiveStrategyWithSelector(t *testing.T) {
 		{Type: domain.CardTypeNumber, Value: 2},
 	}
 	deck := domain.NewDeckFromCards(cards)
-	strat.SetDeck(deck)
+	strategyInstance.SetDeck(deck)
 
 	// Test that ChooseTarget uses the custom selector (should target high-risk opponent)
-	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+	target := strategyInstance.ChooseTarget(domain.ActionFlipThree, candidates, self)
 
 	// With RiskBasedTargetSelector(0.9), it should target the high-risk opponent2
 	if target.ID != opponent2.ID {
@@ -242,9 +242,9 @@ func TestNewAggressiveStrategyWithSelector(t *testing.T) {
 
 func TestNewProbabilisticStrategyWithSelector(t *testing.T) {
 	customSelector := strategy.NewRiskBasedTargetSelector(0.7)
-	strat := strategy.NewProbabilisticStrategyWithSelector(customSelector)
+	strategyInstance := strategy.NewProbabilisticStrategyWithSelector(customSelector)
 
-	if strat == nil {
+	if strategyInstance == nil {
 		t.Fatal("Expected strategy to be initialized")
 	}
 
@@ -257,9 +257,9 @@ func TestNewProbabilisticStrategyWithSelector(t *testing.T) {
 
 	candidates := []*domain.Player{self, opponent}
 	deck := domain.NewDeck()
-	strat.SetDeck(deck)
+	strategyInstance.SetDeck(deck)
 
-	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+	target := strategyInstance.ChooseTarget(domain.ActionFlipThree, candidates, self)
 
 	// Should target the opponent (leader)
 	if target.ID != opponent.ID {
@@ -270,15 +270,15 @@ func TestNewProbabilisticStrategyWithSelector(t *testing.T) {
 func TestNewHeuristicStrategyWithSelector(t *testing.T) {
 	threshold := 25
 	customSelector := strategy.NewRiskBasedTargetSelector(0.85)
-	strat := strategy.NewHeuristicStrategyWithSelector(threshold, customSelector)
+	strategyInstance := strategy.NewHeuristicStrategyWithSelector(threshold, customSelector)
 
-	if strat == nil {
+	if strategyInstance == nil {
 		t.Fatal("Expected strategy to be initialized")
 	}
 
 	// Verify threshold is set correctly
-	if strat.Name() != "Heuristic-25" {
-		t.Errorf("Expected strategy name to be 'Heuristic-25', got %s", strat.Name())
+	if strategyInstance.Name() != "Heuristic-25" {
+		t.Errorf("Expected strategy name to be 'Heuristic-25', got %s", strategyInstance.Name())
 	}
 
 	// Test targeting behavior
@@ -290,9 +290,9 @@ func TestNewHeuristicStrategyWithSelector(t *testing.T) {
 
 	candidates := []*domain.Player{self, opponent}
 	deck := domain.NewDeck()
-	strat.SetDeck(deck)
+	strategyInstance.SetDeck(deck)
 
-	target := strat.ChooseTarget(domain.ActionFreeze, candidates, self)
+	target := strategyInstance.ChooseTarget(domain.ActionFreeze, candidates, self)
 
 	// Should target the opponent (leader)
 	if target.ID != opponent.ID {
@@ -302,9 +302,9 @@ func TestNewHeuristicStrategyWithSelector(t *testing.T) {
 
 func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
 	customSelector := strategy.NewRiskBasedTargetSelector(0.75)
-	strat := strategy.NewExpectedValueStrategyWithSelector(customSelector)
+	strategyInstance := strategy.NewExpectedValueStrategyWithSelector(0.0, customSelector)
 
-	if strat == nil {
+	if strategyInstance == nil {
 		t.Fatal("Expected strategy to be initialized")
 	}
 
@@ -318,9 +318,9 @@ func TestNewExpectedValueStrategyWithSelector(t *testing.T) {
 
 	candidates := []*domain.Player{self, opponent}
 	deck := domain.NewDeck()
-	strat.SetDeck(deck)
+	strategyInstance.SetDeck(deck)
 
-	target := strat.ChooseTarget(domain.ActionFlipThree, candidates, self)
+	target := strategyInstance.ChooseTarget(domain.ActionFlipThree, candidates, self)
 
 	// Should target the opponent (leader)
 	if target.ID != opponent.ID {

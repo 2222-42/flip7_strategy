@@ -26,7 +26,7 @@ func (s *HumanStrategy) Name() string {
 	return "Human"
 }
 
-func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, _ []*domain.Player) domain.TurnChoice {
 	fmt.Printf("\n--- Your Turn ---\n")
 	fmt.Printf("Your Hand: %v (Modifiers: %v, Actions: %v)\n", hand.RawNumberCards, hand.ModifierCards, hand.ActionCards)
 
@@ -56,11 +56,11 @@ func (s *HumanStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playe
 	}
 }
 
-func (h *HumanStrategy) SetDeck(d *domain.Deck) {
-	h.deck = d
+func (s *HumanStrategy) SetDeck(d *domain.Deck) {
+	s.deck = d
 }
 
-func (h *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
+func (s *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
 	fmt.Printf("\n--- Choose Target for %s ---\n", action)
 	for i, p := range candidates {
 		label := p.Name
@@ -72,7 +72,7 @@ func (h *HumanStrategy) ChooseTarget(action domain.ActionType, candidates []*dom
 
 	for {
 		fmt.Printf("Enter number (1-%d): ", len(candidates))
-		input, err := h.reader.ReadString('\n')
+		input, err := s.reader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("Error reading input: %v\n", err)
 			continue

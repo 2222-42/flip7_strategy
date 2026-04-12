@@ -1,8 +1,21 @@
 version: "2"
+
+run:
+  timeout: 3m
+  tests: true
+
 linters:
+  default: none
   enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
     - durationcheck
     - forcetypeassert
+    - misspell
+    - revive
   exclusions:
     generated: lax
     presets:
@@ -14,9 +27,11 @@ linters:
       - linters:
           - forcetypeassert
         path: _test\.go
-issues:
-  max-same-issues: 0
+
 formatters:
+  enable:
+    - gofmt
+    - goimports
   settings:
     gofumpt:
       module-path: github.com/daioh/flip7_strategy

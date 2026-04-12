@@ -15,7 +15,7 @@ type mockFlipThreeCardSource struct {
 	err   error
 }
 
-func (m *mockFlipThreeCardSource) GetNextCard(cardNum int, target *domain.Player) (domain.Card, error) {
+func (m *mockFlipThreeCardSource) GetNextCard(_ int, _ *domain.Player) (domain.Card, error) {
 	if m.err != nil {
 		return domain.Card{}, m.err
 	}
@@ -33,12 +33,12 @@ type mockFlipThreeCardProcessor struct {
 	processError   error
 }
 
-func (m *mockFlipThreeCardProcessor) ProcessImmediateCard(target *domain.Player, card domain.Card) error {
+func (m *mockFlipThreeCardProcessor) ProcessImmediateCard(_ *domain.Player, card domain.Card) error {
 	m.immediateCards = append(m.immediateCards, card)
 	return m.processError
 }
 
-func (m *mockFlipThreeCardProcessor) ProcessQueuedAction(target *domain.Player, card domain.Card) error {
+func (m *mockFlipThreeCardProcessor) ProcessQueuedAction(_ *domain.Player, card domain.Card) error {
 	m.queuedCards = append(m.queuedCards, card)
 	return m.processError
 }
@@ -146,7 +146,7 @@ func TestFlipThreeExecutor_Flip7Achievement(t *testing.T) {
 	// Setup player with 6 unique number cards already
 	player := domain.NewPlayer("TestPlayer", nil)
 	player.StartNewRound()
-	
+
 	// Add 6 unique number cards to hand (values 1-6)
 	for i := 1; i <= 6; i++ {
 		player.CurrentHand.AddCard(domain.Card{Type: domain.CardTypeNumber, Value: domain.NumberValue(i)})

@@ -19,7 +19,7 @@ func (s *CautiousStrategy) Name() string {
 	return "Cautious"
 }
 
-func (s *CautiousStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+func (s *CautiousStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
 	if hand.HasSecondChance() {
 		return domain.TurnChoiceHit
 	}
@@ -119,7 +119,7 @@ func (s *AggressiveStrategy) Name() string {
 	return "Aggressive"
 }
 
-func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+func (s *AggressiveStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
 	if hand.HasSecondChance() {
 		return domain.TurnChoiceHit
 	}
@@ -243,7 +243,7 @@ func (s *HeuristicStrategy) Name() string {
 	return fmt.Sprintf("Heuristic-%d", s.Threshold)
 }
 
-func (s *HeuristicStrategy) Decide(deck *domain.Deck, hand *domain.PlayerHand, playerScore int, otherPlayers []*domain.Player) domain.TurnChoice {
+func (s *HeuristicStrategy) Decide(_ *domain.Deck, hand *domain.PlayerHand, _ int, _ []*domain.Player) domain.TurnChoice {
 	if hand.HasSecondChance() {
 		return domain.TurnChoiceHit
 	}

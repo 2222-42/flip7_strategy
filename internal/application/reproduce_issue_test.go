@@ -9,7 +9,7 @@ import (
 
 type MockLogger struct{}
 
-func (m *MockLogger) Log(gameID, roundID, playerID, eventType string, details map[string]interface{}) {
+func (m *MockLogger) Log(_, _, _, _ string, _ map[string]interface{}) {
 }
 func (m *MockLogger) Close() {}
 
