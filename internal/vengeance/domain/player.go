@@ -125,10 +125,6 @@ func (h *PlayerHand) Stay() {
 	h.Status = HandStatusStayed
 	if len(h.NumberLine) > 0 {
 		h.NumberLine[0].Sideways = true
-		return
-	}
-	if len(h.ModifierLine) > 0 {
-		h.ModifierLine[0].Sideways = true
 	}
 }
 

@@ -107,6 +107,18 @@ func TestEmptyLineCanStay(t *testing.T) {
 	}
 }
 
+func TestStayDoesNotMarkModifierWhenNoNumbers(t *testing.T) {
+	h := NewPlayerHand()
+	h.ReceiveModifier(NewModifierCard(ModifierMinus4))
+	h.Stay()
+	if h.Status != HandStatusStayed {
+		t.Fatalf("status=%s", h.Status)
+	}
+	if h.ModifierLine[0].Sideways {
+		t.Fatal("Stay turns the leftmost number card sideways; modifiers stay upright when the number row is empty")
+	}
+}
+
 func TestRemoveCardStopsZeroEffect(t *testing.T) {
 	h := NewPlayerHand()
 	z := NewSpecialCard(SpecialZero)
