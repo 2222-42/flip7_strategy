@@ -100,7 +100,7 @@ func (s *GameService) PlayRound() {
 
 	for _, p := range round.OfferOrder {
 		if round.IsEnded {
-			s.scoreNonBusted()
+			s.scoreRound()
 			return
 		}
 		if p.CurrentHand.Status != domain.HandStatusActive {
@@ -117,7 +117,7 @@ func (s *GameService) PlayRound() {
 	}
 
 	if round.IsEnded {
-		s.scoreNonBusted()
+		s.scoreRound()
 		return
 	}
 
@@ -145,6 +145,7 @@ func (s *GameService) PlayRound() {
 				Hand:         p.CurrentHand,
 				PlayerScore:  p.TotalScore,
 				OtherPlayers: s.others(p),
+				Rules:        s.Game.Rules,
 			}
 			choice := domain.TurnChoiceStay
 			if p.Strategy != nil {
@@ -176,21 +177,49 @@ func (s *GameService) PlayRound() {
 		}
 	}
 
-	s.scoreNonBusted()
+	s.scoreRound()
 }
 
-func (s *GameService) scoreNonBusted() {
+func (s *GameService) scoreRound() {
 	if s.Game.CurrentRound.EndReason == domain.RoundEndReasonAborted {
 		return
 	}
+	calc := domain.NewScoreCalculatorFor(s.Game.Rules)
+	var flip7 *domain.Player
 	for _, p := range s.Game.Players {
-		if p.CurrentHand == nil || p.CurrentHand.Status == domain.HandStatusBusted {
+		if p.CurrentHand == nil {
+			continue
+		}
+		if p.CurrentHand.Status == domain.HandStatusBusted && !s.Game.Rules.ModifiersTargetBusted {
 			s.log("%s scores 0 (busted). Total: %d\n", p.Name, p.TotalScore)
 			continue
 		}
-		score := p.BankCurrentHand()
-		s.log("%s scores %d. Total: %d\n", p.Name, score, p.TotalScore)
+		pv := calc.Compute(p.CurrentHand)
+		amt := pv.Total
+		if p.CurrentHand.HasFlip7() && p.CurrentHand.Status != domain.HandStatusBusted {
+			flip7 = p
+			if s.Game.Rules.Flip7AsAttack {
+				amt -= pv.Bonus
+			}
+		}
+		p.BankScore(amt)
+		s.log("%s scores %d. Total: %d\n", p.Name, amt, p.TotalScore)
 	}
+	if flip7 == nil || !s.Game.Rules.Flip7AsAttack {
+		return
+	}
+	choice := domain.Flip7BonusChoice{}
+	if flip7.Strategy != nil {
+		s.prepareStrategy(flip7)
+		choice = flip7.Strategy.ChooseFlip7Bonus(flip7, s.others(flip7))
+	}
+	if choice.SubtractFrom != nil && choice.SubtractFrom.ID != flip7.ID {
+		choice.SubtractFrom.BankScore(-domain.Flip7Bonus)
+		s.log("%s Flip 7: −%d to %s. Totals %d / %d\n", flip7.Name, domain.Flip7Bonus, choice.SubtractFrom.Name, flip7.TotalScore, choice.SubtractFrom.TotalScore)
+		return
+	}
+	flip7.BankScore(domain.Flip7Bonus)
+	s.log("%s Flip 7: takes +%d. Total: %d\n", flip7.Name, domain.Flip7Bonus, flip7.TotalScore)
 }
 
 func (s *GameService) others(self *domain.Player) []*domain.Player {
@@ -238,7 +267,7 @@ func (s *GameService) receiveNumber(target *domain.Player, card domain.TableCard
 }
 
 func (s *GameService) assignModifier(actor *domain.Player, card domain.TableCard) {
-	candidates := s.Game.CurrentRound.NonBustedPlayers()
+	candidates := s.modifierCandidates()
 	if len(candidates) == 0 {
 		s.discard(card)
 		return
@@ -250,14 +279,40 @@ func (s *GameService) assignModifier(actor *domain.Player, card domain.TableCard
 			target = t
 		}
 	}
-	if !s.isNonBusted(target) {
+	if !s.validModifierTarget(target) {
 		target = actor
-		if !s.isNonBusted(target) && len(candidates) > 0 {
+		if !s.validModifierTarget(target) && len(candidates) > 0 {
 			target = candidates[0]
 		}
 	}
 	s.log("%s assigns %s to %s\n", actor.Name, card, target.Name)
 	target.CurrentHand.ReceiveModifier(card)
+}
+
+func (s *GameService) modifierCandidates() []*domain.Player {
+	if s.Game.Rules.ModifiersTargetBusted {
+		var out []*domain.Player
+		for _, p := range s.Game.Players {
+			if p.CurrentHand != nil {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+	if s.Game.CurrentRound == nil {
+		return nil
+	}
+	return s.Game.CurrentRound.NonBustedPlayers()
+}
+
+func (s *GameService) validModifierTarget(p *domain.Player) bool {
+	if p == nil || p.CurrentHand == nil {
+		return false
+	}
+	if s.Game.Rules.ModifiersTargetBusted {
+		return true
+	}
+	return p.CurrentHand.Status != domain.HandStatusBusted
 }
 
 func (s *GameService) resolveAction(actor *domain.Player, card domain.TableCard) {
@@ -504,6 +559,9 @@ func (s *GameService) prepareStrategy(p *domain.Player) {
 	}
 	if d, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(s.Game.CurrentRound.Deck)
+	}
+	if r, ok := p.Strategy.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
 	}
 }
 

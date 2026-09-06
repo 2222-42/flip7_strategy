@@ -23,18 +23,24 @@ func main() {
 	case "2":
 		application.NewManualGameService(reader).Run()
 	default:
-		runAutomatic()
+		runAutomatic(reader)
 	}
 }
 
-func runAutomatic() {
+func runAutomatic(reader *bufio.Reader) {
 	fmt.Println("\n--- Automatic Play ---")
+	fmt.Print("Brutal Mode? (y/N): ")
+	brutal, _ := reader.ReadString('\n')
 	players := []*domain.Player{
 		domain.NewPlayer("Ava (EV)", strategy.NewExpectedValueStrategy()),
 		domain.NewPlayer("Ben (Heuristic-26)", strategy.NewHeuristicStrategy(26)),
 		domain.NewPlayer("Cara (Adaptive)", strategy.NewAdaptiveStrategy()),
 	}
 	game := domain.NewGame(players)
+	if strings.EqualFold(strings.TrimSpace(brutal), "y") {
+		game.Rules = domain.BrutalRules()
+		fmt.Println("Brutal Mode on.")
+	}
 	svc := application.NewGameService(game)
 	svc.RunGame()
 

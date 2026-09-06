@@ -82,3 +82,84 @@ Cell is row-strategy win rate against the column strategy.
 - Flip Four risk 0.30–0.70 barely moved EV vs Aggressive (~76–78.5%). Hit/Stay and modifier dumping matter more than that threshold in this matchup.
 
 Take-that changes the original ranking: there is no Freeze to bank, so Aggressive’s extra cards are gifts to Steal / Discard / −N, and EV/Heuristic that stop on the number sum stay on top.
+
+## Brutal Mode
+
+**Date**: 2026-09-06  
+**Games per cell**: 200 (heuristic sweep: 100 per threshold)  
+**Runtime**: 7s  
+**Command**: `go run cmd/evaluate_vengeance/main.go -n 200 -brutal`
+
+Same catalog, overlay on: scores may go negative; modifiers may land on busted players (tax from base 0); Flip 7 is +15 **or** −15 to another cumulative total. Cautious and Heuristic take +15; Aggressive, ExpectedValue, and Adaptive subtract 15 from the score leader.
+
+Standard tables above are unchanged.
+
+### B1. Heuristic stopping threshold (solo)
+
+| Threshold | Avg Rounds | Median | Finished |
+| :--- | ---: | ---: | ---: |
+| Heuristic-16 | 12.60 | 13.00 | 100 |
+| Heuristic-18 | 12.03 | 12.00 | 100 |
+| Heuristic-20 | 11.98 | 12.00 | 100 |
+| Heuristic-22 | 11.35 | 11.00 | 100 |
+| Heuristic-24 | 11.40 | 11.00 | 100 |
+| Heuristic-26 | 12.22 | 12.00 | 100 |
+| Heuristic-28 | 11.39 | 11.00 | 100 |
+| Heuristic-30 | 11.79 | 11.00 | 100 |
+| Heuristic-32 | 12.62 | 12.00 | 100 |
+
+Selected **Heuristic-22** (lowest average rounds among finished solos). Standard's Heuristic-26 is slower here.
+
+### B2. Single player (fastest to 200)
+
+| Strategy | Avg Rounds | Median Rounds | Finished |
+| :--- | ---: | ---: | ---: |
+| Adaptive | 11.28 | 11.00 | 200 |
+| Heuristic-22 | 11.46 | 11.00 | 200 |
+| ExpectedValue | 11.64 | 12.00 | 200 |
+| Cautious | 13.73 | 14.00 | 200 |
+| Aggressive | 21.05 | 19.00 | 200 |
+
+### B3. Multiplayer win rates
+
+| Strategy | 2 Players | 3 Players | 4 Players | 5 Players |
+| :--- | ---: | ---: | ---: | ---: |
+| Cautious | 17.50% | 8.00% | 9.50% | 7.00% |
+| Aggressive | 12.50% | 12.00% | 6.50% | 9.50% |
+| Heuristic-22 | 22.25% | 23.50% | 25.75% | 23.50% |
+| ExpectedValue | 23.75% | 28.25% | 30.25% | 35.50% |
+| Adaptive | 24.00% | 28.25% | 28.00% | 24.50% |
+
+### B4. 1v1 matchups
+
+| vs | Cautious | Aggressive | Heuristic-22 | ExpectedValue | Adaptive |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| **Cautious** | - | 61.25% | 12.75% | 14.75% | 19.00% |
+| **Aggressive** | 38.75% | - | 22.50% | 18.25% | 26.25% |
+| **Heuristic-22** | 87.25% | 77.50% | - | 43.00% | 46.75% |
+| **ExpectedValue** | 85.25% | 81.75% | 57.00% | - | 53.00% |
+| **Adaptive** | 81.00% | 73.75% | 53.25% | 47.00% | - |
+
+### B5. Flip Four risk (ExpectedValue vs Aggressive, 1v1)
+
+| Selector | EV win rate vs Aggressive |
+| :--- | ---: |
+| EV-FF-0.70 | 84.50% |
+| EV-FF-0.50 | 80.00% |
+| EV-FF-0.30 | 78.00% |
+
+### B6. Flip 7 +15 vs −15 (ExpectedValue, 1v1)
+
+| Policy | Win rate |
+| :--- | ---: |
+| EV-Take15 | 47.00% |
+| EV-Attack15 | 53.00% |
+
+### Brutal conclusions
+
+- **ExpectedValue** is the strongest mixed-table name (35.50% at 5p) and wins 1v1 vs Heuristic-22 (57%) and Adaptive (53%).
+- **Adaptive** is the fastest solo (11.28) and the 2p leader (24%).
+- **Heuristic-22** replaces Heuristic-26 as the Brutal stop; it is still the simple number-sum choice and close to EV.
+- **Taking +15 lost to attacking the leader** in a Brutal EV 1v1 (47% vs 53%). Subtracting 15 from the other total is the stronger Flip 7 default when two EV players meet.
+- **Aggressive** is still punished (solo 21.05 rounds; 38.75% vs Cautious).
+- Flip Four risk 0.30–0.70 still barely moved EV vs Aggressive (Brutal B5: 78–84.5%). Hit/Stay and modifier dumping matter more than that threshold.

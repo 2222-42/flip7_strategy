@@ -97,6 +97,37 @@ func TestLucky13BothScoreOneRank(t *testing.T) {
 	}
 }
 
+func TestBrutalScoreGoesNegative(t *testing.T) {
+	h := NewPlayerHand()
+	h.ReceiveNumberLike(NewNumberCard(1))
+	h.ReceiveModifier(NewModifierCard(ModifierMinus10))
+	pv := NewScoreCalculatorFor(BrutalRules()).Compute(h)
+	if pv.Total != -9 {
+		t.Fatalf("brutal total=%d, want -9", pv.Total)
+	}
+}
+
+func TestBrutalBustedBanksModifiers(t *testing.T) {
+	h := NewPlayerHand()
+	h.ReceiveNumberLike(NewNumberCard(5))
+	h.ReceiveNumberLike(NewNumberCard(5))
+	if h.Status != HandStatusBusted {
+		t.Fatal("want busted")
+	}
+	h.ReceiveModifier(NewModifierCard(ModifierMinus10))
+	if h.ModifierLine[0].FaceUp {
+		t.Fatal("modifier on busted should be face down")
+	}
+	pv := NewScoreCalculatorFor(BrutalRules()).Compute(h)
+	if pv.Total != -10 {
+		t.Fatalf("busted brutal total=%d, want -10", pv.Total)
+	}
+	std := NewScoreCalculator().Compute(h)
+	if std.Total != 0 {
+		t.Fatalf("standard busted total=%d, want 0", std.Total)
+	}
+}
+
 func TestDetermineWinnersTie(t *testing.T) {
 	a := NewPlayer("A", nil)
 	b := NewPlayer("B", nil)

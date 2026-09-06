@@ -77,7 +77,7 @@ func TestManualUIsUnluckySevenNotUndo(t *testing.T) {
 }
 
 func TestManualUndoLastStayFromNextRound(t *testing.T) {
-	in := strings.NewReader("2\nBob\n1\n5\n11\nS\nS\nUNDO\n7\nS\n")
+	in := strings.NewReader("2\nBob\n1\n\n5\n11\nS\nS\nUNDO\n7\nS\n")
 	svc := NewManualGameService(bufio.NewReader(in))
 	svc.Run()
 	me := svc.Game.Players[0]

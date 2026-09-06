@@ -6,6 +6,7 @@ type DecisionContext struct {
 	Hand         *PlayerHand
 	PlayerScore  int
 	OtherPlayers []*Player
+	Rules        GameRules
 }
 
 // DrawUniverse is the card set the next Hit will sample: the draw pile, or the
@@ -17,6 +18,11 @@ func (ctx DecisionContext) DrawUniverse() []TableCard {
 	return ctx.DiscardPile
 }
 
+// Flip7BonusChoice is Brutal Mode's Flip 7 option. SubtractFrom nil means take +15.
+type Flip7BonusChoice struct {
+	SubtractFrom *Player
+}
+
 type Strategy interface {
 	Name() string
 	Decide(ctx DecisionContext) TurnChoice
@@ -24,6 +30,7 @@ type Strategy interface {
 	ChooseModifierTarget(mod ModifierType, candidates []*Player, self *Player) *Player
 	ChooseCardTarget(action ActionType, faceUp []CardRef, self *Player) *CardRef
 	ChooseSwapPair(faceUp []CardRef, self *Player) *SwapPair
+	ChooseFlip7Bonus(self *Player, opponents []*Player) Flip7BonusChoice
 }
 
 // StubStrategy stays unless The Zero forces a hit. Targeting is first legal option.
@@ -56,6 +63,10 @@ func (s *StubStrategy) ChoosePlayerTarget(_ ActionType, candidates []*Player, se
 
 func (s *StubStrategy) ChooseModifierTarget(_ ModifierType, candidates []*Player, self *Player) *Player {
 	return s.ChoosePlayerTarget(ActionDiscard, candidates, self)
+}
+
+func (s *StubStrategy) ChooseFlip7Bonus(_ *Player, _ []*Player) Flip7BonusChoice {
+	return Flip7BonusChoice{}
 }
 
 func (s *StubStrategy) ChooseCardTarget(action ActionType, faceUp []CardRef, self *Player) *CardRef {

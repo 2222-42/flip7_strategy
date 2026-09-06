@@ -53,7 +53,16 @@ func (s *ManualGameService) Run() {
 	fmt.Println("\n--- Vengeance Manual Mode (physical game helper) ---")
 	fmt.Println(inputHelp)
 	s.setupPlayers()
+	s.askBrutal()
 	s.gameLoop()
+}
+
+func (s *ManualGameService) askBrutal() {
+	fmt.Print("Brutal Mode? (y/N): ")
+	if strings.EqualFold(s.readLine(), "y") {
+		s.Game.Rules = domain.BrutalRules()
+		fmt.Println("Brutal Mode on: scores may go negative, modifiers can hit busted players, Flip 7 can −15 another total.")
+	}
 }
 
 func (s *ManualGameService) setupPlayers() {
@@ -90,6 +99,22 @@ func (s *ManualGameService) setupPlayers() {
 	s.Game.DealerIndex = idx - 1
 	s.Game.Deck = domain.NewUnshuffledDeck()
 	fmt.Println("Game started. Type the cards as they appear.")
+}
+
+func (s *ManualGameService) modifierCandidates() []*domain.Player {
+	if s.Game != nil && s.Game.Rules.ModifiersTargetBusted {
+		var out []*domain.Player
+		for _, p := range s.Game.Players {
+			if p.CurrentHand != nil {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+	if s.Game == nil || s.Game.CurrentRound == nil {
+		return nil
+	}
+	return s.Game.CurrentRound.NonBustedPlayers()
 }
 
 func (s *ManualGameService) gameLoop() {
@@ -229,24 +254,96 @@ func (s *ManualGameService) playRound() {
 	if s.eof {
 		return
 	}
-	s.scoreNonBusted()
+	s.scoreRound()
+	if s.rewound {
+		s.rewound = false
+		if s.Game.CurrentRound != nil && !s.Game.CurrentRound.IsEnded && !s.eof {
+			s.playRound()
+		}
+	}
 }
 
-func (s *ManualGameService) scoreNonBusted() {
+func (s *ManualGameService) scoreRound() {
 	fmt.Println("\n--- End of round ---")
+	calc := domain.NewScoreCalculatorFor(s.Game.Rules)
+	var flip7 *domain.Player
 	for _, p := range s.Game.Players {
-		if p.CurrentHand == nil || p.CurrentHand.Status == domain.HandStatusBusted {
+		if p.CurrentHand == nil {
+			continue
+		}
+		if p.CurrentHand.Status == domain.HandStatusBusted && !s.Game.Rules.ModifiersTargetBusted {
 			fmt.Printf("%s scores 0 (busted). Total: %d\n", p.Name, p.TotalScore)
 			continue
 		}
-		score := p.BankCurrentHand()
-		fmt.Printf("%s scores %d. Total: %d\n", p.Name, score, p.TotalScore)
+		pv := calc.Compute(p.CurrentHand)
+		amt := pv.Total
+		if p.CurrentHand.HasFlip7() && p.CurrentHand.Status != domain.HandStatusBusted {
+			flip7 = p
+			if s.Game.Rules.Flip7AsAttack {
+				amt -= pv.Bonus
+			}
+		}
+		p.BankScore(amt)
+		fmt.Printf("%s scores %d. Total: %d\n", p.Name, amt, p.TotalScore)
+	}
+	if flip7 == nil || !s.Game.Rules.Flip7AsAttack {
+		return
+	}
+	target := s.promptFlip7Attack(flip7)
+	if s.aborted() {
+		return
+	}
+	if target != nil && target.ID != flip7.ID {
+		target.BankScore(-domain.Flip7Bonus)
+		fmt.Printf("%s Flip 7: −%d to %s. Totals %d / %d\n", flip7.Name, domain.Flip7Bonus, target.Name, flip7.TotalScore, target.TotalScore)
+		return
+	}
+	flip7.BankScore(domain.Flip7Bonus)
+	fmt.Printf("%s Flip 7: takes +%d. Total: %d\n", flip7.Name, domain.Flip7Bonus, flip7.TotalScore)
+}
+
+func (s *ManualGameService) promptFlip7Attack(self *domain.Player) *domain.Player {
+	others := s.others(self)
+	if len(others) == 0 {
+		return nil
+	}
+	s.prepareAdvisor()
+	suggested := s.Advisor.ChooseFlip7Bonus(self, others).SubtractFrom
+	fmt.Println("Flip 7: take +15 or subtract 15 from another player.")
+	fmt.Println("0. Take +15")
+	for i, p := range others {
+		mark := ""
+		if suggested != nil && p.ID == suggested.ID {
+			mark = " [Suggested]"
+		}
+		fmt.Printf("%d. −15 to %s (Total %d)%s\n", i+1, p.Name, p.TotalScore, mark)
+	}
+	for {
+		fmt.Print("Enter choice: ")
+		input := s.readLine()
+		if s.eof {
+			return nil
+		}
+		if s.handleHistoryCommand(input, true) {
+			if s.aborted() {
+				return nil
+			}
+			continue
+		}
+		if strings.TrimSpace(input) == "0" {
+			return nil
+		}
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(others) {
+			return suggested
+		}
+		return others[idx-1]
 	}
 }
 
 func (s *ManualGameService) analyzeState(p *domain.Player) {
 	fmt.Printf("\n>>> Turn: %s (Total: %d)\n", p.Name, p.TotalScore)
-	calc := domain.NewScoreCalculator()
+	calc := domain.NewScoreCalculatorFor(s.Game.Rules)
 	fmt.Printf("Current Hand: %s | Round: %d\n", formatHand(p.CurrentHand), calc.Compute(p.CurrentHand).Total)
 
 	deck := s.riskDeck()
@@ -262,9 +359,13 @@ func (s *ManualGameService) analyzeState(p *domain.Player) {
 		Hand:         p.CurrentHand,
 		PlayerScore:  p.TotalScore,
 		OtherPlayers: s.others(p),
+		Rules:        s.Game.Rules,
 	}
 	if d, ok := s.Advisor.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(deck)
+	}
+	if r, ok := s.Advisor.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
 	}
 	choice := s.Advisor.Decide(ctx)
 	if p.CurrentHand.MustHit() {
@@ -396,7 +497,7 @@ func (s *ManualGameService) processCard(actor *domain.Player, card domain.TableC
 		s.resolveAction(actor, card)
 	}
 	if actor.CurrentHand != nil {
-		calc := domain.NewScoreCalculator()
+		calc := domain.NewScoreCalculatorFor(s.Game.Rules)
 		fmt.Printf("Current Hand: %s | Round: %d\n", formatHand(actor.CurrentHand), calc.Compute(actor.CurrentHand).Total)
 	}
 }
@@ -418,7 +519,7 @@ func (s *ManualGameService) receiveNumber(target *domain.Player, card domain.Tab
 }
 
 func (s *ManualGameService) assignModifier(actor *domain.Player, card domain.TableCard) {
-	candidates := s.Game.CurrentRound.NonBustedPlayers()
+	candidates := s.modifierCandidates()
 	if len(candidates) == 0 {
 		s.discard(card)
 		return
@@ -814,6 +915,9 @@ func (s *ManualGameService) prepareAdvisor() {
 	}
 	if d, ok := s.Advisor.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(s.Game.CurrentRound.Deck)
+	}
+	if r, ok := s.Advisor.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
 	}
 }
 

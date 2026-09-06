@@ -286,3 +286,101 @@ func TestStealStillResolvesWhenStrategyPasses(t *testing.T) {
 		t.Fatalf("p0 should have stolen 12, line=%v", p0.CurrentHand.NumberLine)
 	}
 }
+
+type attackFlip7 struct {
+	*domain.StubStrategy
+	target *domain.Player
+}
+
+func (s *attackFlip7) ChooseFlip7Bonus(*domain.Player, []*domain.Player) domain.Flip7BonusChoice {
+	return domain.Flip7BonusChoice{SubtractFrom: s.target}
+}
+
+func TestBrutalModifierOnBustedBanksNegative(t *testing.T) {
+	svc := newSilentGame(2, stacked())
+	svc.Game.Rules = domain.BrutalRules()
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, svc.Game.Players[0], svc.Game.Deck)
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	svc.assignModifier(p1, domain.NewModifierCard(domain.ModifierMinus10))
+	if len(p0.CurrentHand.ModifierLine) != 1 {
+		t.Fatal("brutal modifier should land on busted player")
+	}
+	svc.Game.CurrentRound.End(domain.RoundEndReasonNoActivePlayers)
+	svc.scoreRound()
+	if p0.TotalScore != -10 {
+		t.Fatalf("busted total=%d, want -10", p0.TotalScore)
+	}
+}
+
+func TestStandardModifierSkipsBusted(t *testing.T) {
+	svc := newSilentGame(2, stacked())
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, svc.Game.Players[0], svc.Game.Deck)
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	svc.assignModifier(p1, domain.NewModifierCard(domain.ModifierMinus10))
+	if len(p0.CurrentHand.ModifierLine) != 0 {
+		t.Fatal("standard must not put modifiers on busted players")
+	}
+	if len(p1.CurrentHand.ModifierLine) != 1 {
+		t.Fatal("standard should keep the modifier on a non-busted player")
+	}
+}
+
+func TestBrutalFlip7AttackHitsCumulative(t *testing.T) {
+	svc := newSilentGame(2, stacked())
+	svc.Game.Rules = domain.BrutalRules()
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.Strategy = &attackFlip7{StubStrategy: domain.NewStubStrategy(), target: p1}
+	p1.TotalScore = 40
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, p0, svc.Game.Deck)
+	for _, v := range []domain.NumberValue{1, 2, 3, 4, 5, 6, 7} {
+		p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(v))
+	}
+	p1.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(8))
+	svc.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
+	svc.scoreRound()
+	if p0.TotalScore != 28 {
+		t.Fatalf("flipper total=%d, want 28 (no +15)", p0.TotalScore)
+	}
+	if p1.TotalScore != 33 {
+		t.Fatalf("target total=%d, want 40-15+8=33", p1.TotalScore)
+	}
+}
+
+func TestBrutalFlip7SoloTakesBonus(t *testing.T) {
+	svc := newSilentGame(1, stacked())
+	svc.Game.Rules = domain.BrutalRules()
+	p := svc.Game.Players[0]
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, p, svc.Game.Deck)
+	for _, v := range []domain.NumberValue{1, 2, 3, 4, 5, 6, 7} {
+		p.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(v))
+	}
+	svc.Game.CurrentRound.End(domain.RoundEndReasonFlip7)
+	svc.scoreRound()
+	if p.TotalScore != 43 {
+		t.Fatalf("solo Flip 7 total=%d, want 28+15", p.TotalScore)
+	}
+}
+
+func TestBrutalJustOneMoreSkipsBusted(t *testing.T) {
+	svc := newSilentGame(2, stacked(domain.NewNumberCard(9)))
+	svc.Game.Rules = domain.BrutalRules()
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, svc.Game.Players[0], svc.Game.Deck)
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	p0.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(5))
+	svc.executeJustOneMore(p0)
+	if p0.CurrentHand.Status != domain.HandStatusBusted {
+		t.Fatal("JOM must not revive a busted player")
+	}
+	if len(p1.CurrentHand.NumberLine) != 0 {
+		t.Fatal("JOM on busted should be a no-op, not deal to the other player")
+	}
+}

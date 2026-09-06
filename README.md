@@ -20,7 +20,10 @@ This project simulates the "Flip 7" card game, where players push their luck to 
 > ```bash
 > go run cmd/vengeance/main.go
 > go run cmd/evaluate_vengeance/main.go -n 200
+> go run cmd/evaluate_vengeance/main.go -n 200 -brutal
 > ```
+>
+> Brutal Mode is opt-in (prompt in `cmd/vengeance`, or `-brutal` for evaluation). Standard scoring stays the default.
 >
 > Manual mode (choice `2`) is a helper for a physical Vengeance game: type the cards as they appear and Adaptive suggests Hit/Stay plus action/modifier targets. Stay banks only at round end. Input codes: `1-13`, `0`/`Z`, `U` (Unlucky 7), `L`, `-2`…`-10`, `/2`, `J`, `F4`, `SW`, `ST`, `DI`, `S`. Undo/redo: `UNDO`/`<` and `REDO`/`R`/`>` (`U` is the Unlucky 7 card). Nested action input undoes the whole action.
 >

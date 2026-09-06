@@ -171,7 +171,7 @@ func (h *PlayerHand) ReceiveNumberLike(card TableCard) ReceiveResult {
 }
 
 func (h *PlayerHand) ReceiveModifier(card TableCard) {
-	card.FaceUp = true
+	card.FaceUp = h.Status != HandStatusBusted
 	card.Sideways = false
 	h.ModifierLine = append(h.ModifierLine, card)
 }
