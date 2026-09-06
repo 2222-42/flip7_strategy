@@ -68,3 +68,28 @@ func TestDrawUpdatesRemaining(t *testing.T) {
 		t.Fatalf("remaining 1 = %d", d.Remaining.ByNumber[1])
 	}
 }
+
+func TestEstimateFlipFourRiskCertainBust(t *testing.T) {
+	h := NewPlayerHand()
+	h.ReceiveNumberLike(NewNumberCard(5))
+	d := DeckWithCards([]TableCard{
+		NewNumberCard(5), NewNumberCard(5), NewNumberCard(5), NewNumberCard(5),
+	})
+	if got := d.EstimateFlipFourRisk(h); got != 1 {
+		t.Fatalf("risk=%v, want 1", got)
+	}
+}
+
+func TestEstimateFlipFourRiskUnlucky7DoesNotBust(t *testing.T) {
+	h := NewPlayerHand()
+	h.ReceiveNumberLike(NewNumberCard(7))
+	d := DeckWithCards([]TableCard{
+		NewSpecialCard(SpecialUnlucky7),
+		NewNumberCard(1),
+		NewNumberCard(2),
+		NewNumberCard(3),
+	})
+	if got := d.EstimateFlipFourRisk(h); got != 0 {
+		t.Fatalf("Unlucky 7 then unique ranks must not bust, risk=%v", got)
+	}
+}

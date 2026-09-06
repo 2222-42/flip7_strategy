@@ -96,24 +96,23 @@ func (s *DefaultTargetSelector) ChooseModifierTarget(_ domain.ModifierType, cand
 }
 
 func (s *DefaultTargetSelector) ChooseCardTarget(action domain.ActionType, faceUp []domain.CardRef, self *domain.Player) *domain.CardRef {
+	if len(faceUp) == 0 {
+		return nil
+	}
 	var best *domain.CardRef
 	bestVal := -1 << 30
 	for i := range faceUp {
 		ref := &faceUp[i]
-		if self != nil && ref.OwnerID == self.ID {
-			if action != domain.ActionDiscard {
-				continue
-			}
+		own := self != nil && ref.OwnerID == self.ID
+		if action == domain.ActionSteal && own {
+			continue
 		}
 		val := 0
 		switch action {
 		case domain.ActionSteal:
 			val = stealValue(ref.Spec)
 		case domain.ActionDiscard:
-			if self != nil && ref.OwnerID == self.ID {
-				continue
-			}
-			val = discardValue(ref.Spec)
+			val = discardValue(ref.Spec, own)
 		default:
 			val = stealValue(ref.Spec)
 		}
@@ -122,15 +121,22 @@ func (s *DefaultTargetSelector) ChooseCardTarget(action domain.ActionType, faceU
 			best = ref
 		}
 	}
-	if bestVal <= 0 {
-		return nil
+	if best != nil {
+		return best
 	}
-	return best
+	if action == domain.ActionSteal {
+		for i := range faceUp {
+			if self == nil || faceUp[i].OwnerID != self.ID {
+				return &faceUp[i]
+			}
+		}
+	}
+	return &faceUp[0]
 }
 
 func (s *DefaultTargetSelector) ChooseSwapPair(faceUp []domain.CardRef, self *domain.Player) *domain.SwapPair {
 	if self == nil {
-		return nil
+		return domain.FirstLegalSwapPair(faceUp)
 	}
 	var mine *domain.CardRef
 	mineBurden := -1
@@ -155,7 +161,7 @@ func (s *DefaultTargetSelector) ChooseSwapPair(faceUp []domain.CardRef, self *do
 	if mine != nil && theirs != nil && mineBurden > 0 && theirPrize > 0 {
 		return &domain.SwapPair{A: *mine, B: *theirs}
 	}
-	return nil
+	return domain.FirstLegalSwapPair(faceUp)
 }
 
 func stealValue(spec domain.CardSpec) int {
@@ -171,7 +177,25 @@ func stealValue(spec domain.CardSpec) int {
 	return -1
 }
 
-func discardValue(spec domain.CardSpec) int {
+func discardValue(spec domain.CardSpec, own bool) int {
+	if own {
+		if spec.SpecialKind == domain.SpecialZero {
+			return 80
+		}
+		if spec.Type == domain.CardTypeModifier {
+			if spec.ModifierType.IsDivide() {
+				return 50
+			}
+			return -spec.ModifierType.Amount()
+		}
+		if spec.SpecialKind == domain.SpecialLucky13 {
+			return -100
+		}
+		if spec.IsNumberLike() {
+			return -int(spec.Value)
+		}
+		return -1
+	}
 	if spec.SpecialKind == domain.SpecialLucky13 {
 		return 100
 	}

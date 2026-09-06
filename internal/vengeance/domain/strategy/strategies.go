@@ -104,7 +104,7 @@ func (s *ExpectedValueStrategy) Decide(ctx domain.DecisionContext) domain.TurnCh
 	if shouldAlwaysHit(ctx) {
 		return domain.TurnChoiceHit
 	}
-	if ctx.Deck == nil || len(ctx.Deck.Cards) == 0 {
+	if len(ctx.DrawUniverse()) == 0 {
 		return domain.TurnChoiceStay
 	}
 	if expectedExplorationValue(ctx) > 0 {
@@ -187,7 +187,8 @@ func isBehind(ctx domain.DecisionContext) bool {
 func expectedExplorationValue(ctx domain.DecisionContext) float64 {
 	calc := domain.NewScoreCalculator()
 	current := calc.Compute(ctx.Hand).Total
-	total := len(ctx.Deck.Cards)
+	cards := ctx.DrawUniverse()
+	total := len(cards)
 	if total == 0 {
 		return 0
 	}
@@ -202,7 +203,7 @@ func expectedExplorationValue(ctx domain.DecisionContext) float64 {
 
 	gainSum := 0.0
 	busts := 0
-	for _, card := range ctx.Deck.Cards {
+	for _, card := range cards {
 		cl := ctx.Hand.Clone()
 		switch card.Spec.Type {
 		case domain.CardTypeNumber, domain.CardTypeSpecialNumber:

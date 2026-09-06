@@ -73,19 +73,25 @@ func (s *GameService) collectTableCards() {
 	}
 }
 
-func (s *GameService) DrawCard() (domain.TableCard, error) {
+func (s *GameService) ensureDeck() bool {
 	round := s.Game.CurrentRound
-	card, err := round.Deck.Draw()
-	if err == nil {
-		return card, nil
+	if round.Deck != nil && len(round.Deck.Cards) > 0 {
+		return true
 	}
 	if len(s.Game.DiscardPile) == 0 {
-		return domain.TableCard{}, fmt.Errorf("deck is empty and discard pile is empty")
+		return false
 	}
 	s.log("Deck empty. Reshuffling %d cards from discard pile...\n", len(s.Game.DiscardPile))
 	round.Deck = domain.NewDeckFromCards(s.Game.DiscardPile)
 	s.Game.DiscardPile = nil
-	return round.Deck.Draw()
+	return len(round.Deck.Cards) > 0
+}
+
+func (s *GameService) DrawCard() (domain.TableCard, error) {
+	if !s.ensureDeck() {
+		return domain.TableCard{}, fmt.Errorf("deck is empty and discard pile is empty")
+	}
+	return s.Game.CurrentRound.Deck.Draw()
 }
 
 func (s *GameService) PlayRound() {
@@ -131,9 +137,11 @@ func (s *GameService) PlayRound() {
 				continue
 			}
 			progress = true
+			s.ensureDeck()
 
 			ctx := domain.DecisionContext{
 				Deck:         round.Deck,
+				DiscardPile:  s.Game.DiscardPile,
 				Hand:         p.CurrentHand,
 				PlayerScore:  p.TotalScore,
 				OtherPlayers: s.others(p),
@@ -356,8 +364,7 @@ func (s *GameService) executeSteal(actor *domain.Player, action domain.TableCard
 		ref = &refs[0]
 	}
 	if ref == nil {
-		s.log("%s plays Steal with no target; discarded.\n", actor.Name)
-		return
+		ref = fallbackCardRef(refs, actor)
 	}
 	owner := s.Game.PlayerByID(ref.OwnerID)
 	if owner == nil || owner.CurrentHand == nil {
@@ -392,8 +399,7 @@ func (s *GameService) executeDiscard(actor *domain.Player, action domain.TableCa
 		ref = &refs[0]
 	}
 	if ref == nil {
-		s.log("%s plays Discard with no target; discarded.\n", actor.Name)
-		return
+		ref = fallbackCardRef(refs, actor)
 	}
 	owner := s.Game.PlayerByID(ref.OwnerID)
 	if owner == nil || owner.CurrentHand == nil {
@@ -414,6 +420,9 @@ func (s *GameService) executeSwap(actor *domain.Player, action domain.TableCard)
 	if actor.Strategy != nil {
 		s.prepareStrategy(actor)
 		pair = actor.Strategy.ChooseSwapPair(refs, actor)
+	}
+	if pair == nil || pair.A.OwnerID == pair.B.OwnerID || pair.A.ID == pair.B.ID {
+		pair = domain.FirstLegalSwapPair(refs)
 	}
 	if pair == nil || pair.A.OwnerID == pair.B.OwnerID || pair.A.ID == pair.B.ID {
 		s.log("%s plays Swap with no legal pair; discarded.\n", actor.Name)
@@ -476,6 +485,17 @@ func (s *GameService) choosePlayer(actor *domain.Player, action domain.ActionTyp
 		return actor
 	}
 	return t
+}
+
+func fallbackCardRef(refs []domain.CardRef, self *domain.Player) *domain.CardRef {
+	if self != nil {
+		for i := range refs {
+			if refs[i].OwnerID != self.ID {
+				return &refs[i]
+			}
+		}
+	}
+	return &refs[0]
 }
 
 func (s *GameService) prepareStrategy(p *domain.Player) {

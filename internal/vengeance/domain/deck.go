@@ -155,14 +155,39 @@ func (d *Deck) EstimateHitRisk(hand *PlayerHand) float64 {
 	return float64(risk) / float64(total)
 }
 
+const flipFourRiskTrials = 500
+
 func (d *Deck) EstimateFlipFourRisk(hand *PlayerHand) float64 {
-	p := d.EstimateHitRisk(hand)
-	if p <= 0 {
+	if hand == nil || len(d.Cards) == 0 {
 		return 0
 	}
-	if p >= 1 {
-		return 1
+	drawN := FlipFourCardCount
+	if drawN > len(d.Cards) {
+		drawN = len(d.Cards)
 	}
-	q := 1 - p
-	return 1 - q*q*q*q
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	busts := 0
+	for trial := 0; trial < flipFourRiskTrials; trial++ {
+		order := r.Perm(len(d.Cards))
+		cl := hand.Clone()
+		busted := false
+		for i := 0; i < drawN; i++ {
+			card := d.Cards[order[i]]
+			if !card.Spec.IsNumberLike() {
+				continue
+			}
+			res := cl.ReceiveNumberLike(card)
+			if res.Busted {
+				busted = true
+				break
+			}
+			if res.Flip7 {
+				break
+			}
+		}
+		if busted {
+			busts++
+		}
+	}
+	return float64(busts) / float64(flipFourRiskTrials)
 }

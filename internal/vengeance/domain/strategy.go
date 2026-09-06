@@ -2,9 +2,19 @@ package domain
 
 type DecisionContext struct {
 	Deck         *Deck
+	DiscardPile  []TableCard
 	Hand         *PlayerHand
 	PlayerScore  int
 	OtherPlayers []*Player
+}
+
+// DrawUniverse is the card set the next Hit will sample: the draw pile, or the
+// discard pile if a reshuffle would happen first.
+func (ctx DecisionContext) DrawUniverse() []TableCard {
+	if ctx.Deck != nil && len(ctx.Deck.Cards) > 0 {
+		return ctx.Deck.Cards
+	}
+	return ctx.DiscardPile
 }
 
 type Strategy interface {
@@ -64,7 +74,7 @@ func (s *StubStrategy) ChooseCardTarget(action ActionType, faceUp []CardRef, sel
 
 func (s *StubStrategy) ChooseSwapPair(faceUp []CardRef, self *Player) *SwapPair {
 	if self == nil {
-		return swapTwoDifferentOwners(faceUp)
+		return FirstLegalSwapPair(faceUp)
 	}
 	var mine *CardRef
 	var theirs *CardRef
@@ -80,10 +90,10 @@ func (s *StubStrategy) ChooseSwapPair(faceUp []CardRef, self *Player) *SwapPair 
 	if mine != nil && theirs != nil {
 		return &SwapPair{A: *mine, B: *theirs}
 	}
-	return swapTwoDifferentOwners(faceUp)
+	return FirstLegalSwapPair(faceUp)
 }
 
-func swapTwoDifferentOwners(faceUp []CardRef) *SwapPair {
+func FirstLegalSwapPair(faceUp []CardRef) *SwapPair {
 	for i := range faceUp {
 		for j := i + 1; j < len(faceUp); j++ {
 			if faceUp[i].OwnerID != faceUp[j].OwnerID {

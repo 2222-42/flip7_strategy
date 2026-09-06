@@ -112,6 +112,55 @@ func TestSwapDumpsZero(t *testing.T) {
 	}
 }
 
+func TestExpectedValueHitsWhenDrawPileEmptyButDiscardHasGain(t *testing.T) {
+	h := domain.NewPlayerHand()
+	h.ReceiveNumberLike(domain.NewNumberCard(2))
+	ctx := domain.DecisionContext{
+		Hand: h,
+		Deck: domain.DeckWithCards(nil),
+		DiscardPile: []domain.TableCard{
+			domain.NewNumberCard(12),
+			domain.NewNumberCard(11),
+		},
+	}
+	if NewExpectedValueStrategy().Decide(ctx) != domain.TurnChoiceHit {
+		t.Fatal("EV should hit into a reshuffle that still has safe high cards")
+	}
+}
+
+func TestDiscardOwnZero(t *testing.T) {
+	self := domain.NewPlayer("me", nil)
+	opp := domain.NewPlayer("opp", nil)
+	zero := domain.NewSpecialCard(domain.SpecialZero)
+	low := domain.NewNumberCard(4)
+	refs := []domain.CardRef{
+		{ID: zero.ID, OwnerID: self.ID, Spec: zero.Spec},
+		{ID: low.ID, OwnerID: opp.ID, Spec: low.Spec},
+	}
+	got := NewDefaultTargetSelector().ChooseCardTarget(domain.ActionDiscard, refs, self)
+	if got == nil || got.ID != zero.ID {
+		t.Fatalf("got %+v, want own Zero", got)
+	}
+}
+
+func TestSwapFallsBackWhenNoBurden(t *testing.T) {
+	self := domain.NewPlayer("me", nil)
+	opp := domain.NewPlayer("opp", nil)
+	mine := domain.NewNumberCard(8)
+	theirs := domain.NewNumberCard(3)
+	refs := []domain.CardRef{
+		{ID: mine.ID, OwnerID: self.ID, Spec: mine.Spec},
+		{ID: theirs.ID, OwnerID: opp.ID, Spec: theirs.Spec},
+	}
+	pair := NewDefaultTargetSelector().ChooseSwapPair(refs, self)
+	if pair == nil {
+		t.Fatal("legal two-owner pair must not be skipped")
+	}
+	if pair.A.OwnerID == pair.B.OwnerID {
+		t.Fatal("swap must be between two players")
+	}
+}
+
 func TestAdaptiveSwitchesWhenBehind(t *testing.T) {
 	h := domain.NewPlayerHand()
 	h.ReceiveNumberLike(domain.NewNumberCard(12))

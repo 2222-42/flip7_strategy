@@ -231,3 +231,58 @@ func TestFlip7EndsRound(t *testing.T) {
 		t.Fatalf("reason=%s", svc.Game.CurrentRound.EndReason)
 	}
 }
+
+type passStrategy struct {
+	*domain.StubStrategy
+}
+
+func (s *passStrategy) ChooseCardTarget(domain.ActionType, []domain.CardRef, *domain.Player) *domain.CardRef {
+	return nil
+}
+
+func (s *passStrategy) ChooseSwapPair([]domain.CardRef, *domain.Player) *domain.SwapPair {
+	return nil
+}
+
+func TestSwapStillResolvesWhenStrategyPasses(t *testing.T) {
+	a := domain.NewNumberCard(8)
+	b := domain.NewNumberCard(3)
+	swap := domain.NewActionCard(domain.ActionSwap)
+	svc := newSilentGame(2, stacked())
+	svc.Game.Players[0].Strategy = &passStrategy{StubStrategy: domain.NewStubStrategy()}
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, svc.Game.Players[0], svc.Game.Deck)
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.CurrentHand.ReceiveNumberLike(a)
+	p1.CurrentHand.ReceiveNumberLike(b)
+	svc.executeSwap(p0, swap)
+	if len(p0.CurrentHand.NumberLine) != 1 || p0.CurrentHand.NumberLine[0].ID != b.ID {
+		t.Fatalf("p0 line=%v, want stolen/swapped 3", p0.CurrentHand.NumberLine)
+	}
+	if len(p1.CurrentHand.NumberLine) != 1 || p1.CurrentHand.NumberLine[0].ID != a.ID {
+		t.Fatalf("p1 line=%v, want 8", p1.CurrentHand.NumberLine)
+	}
+}
+
+func TestStealStillResolvesWhenStrategyPasses(t *testing.T) {
+	mine := domain.NewNumberCard(2)
+	theirs := domain.NewNumberCard(12)
+	steal := domain.NewActionCard(domain.ActionSteal)
+	svc := newSilentGame(2, stacked())
+	svc.Game.Players[0].Strategy = &passStrategy{StubStrategy: domain.NewStubStrategy()}
+	svc.Game.CurrentRound = domain.NewRound(svc.Game.Players, svc.Game.Players[0], svc.Game.Deck)
+	p0 := svc.Game.Players[0]
+	p1 := svc.Game.Players[1]
+	p0.CurrentHand.ReceiveNumberLike(mine)
+	p1.CurrentHand.ReceiveNumberLike(theirs)
+	svc.executeSteal(p0, steal)
+	found := false
+	for _, c := range p0.CurrentHand.NumberLine {
+		if c.ID == theirs.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("p0 should have stolen 12, line=%v", p0.CurrentHand.NumberLine)
+	}
+}
