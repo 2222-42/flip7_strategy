@@ -98,6 +98,23 @@ func (r *Round) NonBustedPlayers() []*Player {
 	return out
 }
 
+// GameRules is the Brutal Mode overlay. Zero value is standard Vengeance.
+type GameRules struct {
+	ScoreCanGoNegative    bool `json:"score_can_go_negative"`
+	ModifiersTargetBusted bool `json:"modifiers_target_busted"`
+	Flip7AsAttack         bool `json:"flip7_as_attack"`
+}
+
+func StandardRules() GameRules { return GameRules{} }
+
+func BrutalRules() GameRules {
+	return GameRules{
+		ScoreCanGoNegative:    true,
+		ModifiersTargetBusted: true,
+		Flip7AsAttack:         true,
+	}
+}
+
 type Game struct {
 	ID           uuid.UUID   `json:"id"`
 	Players      []*Player   `json:"players"`
@@ -108,6 +125,7 @@ type Game struct {
 	DiscardPile  []TableCard `json:"discard_pile"`
 	RoundCount   int         `json:"round_count"`
 	Deck         *Deck       `json:"deck"`
+	Rules        GameRules   `json:"rules"`
 }
 
 func NewGame(players []*Player) *Game {

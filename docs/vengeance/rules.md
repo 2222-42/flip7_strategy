@@ -6,7 +6,7 @@ Authoritative rules for the `Flip7Vengeance` bounded context. Implementation tes
 
 **Design:** [`domain_model.md`](domain_model.md). Where this file and the model disagree, **this file wins**; update the model.
 
-Standard rules only. Brutal Mode is summarized at the end and is **not** in the engine until a follow-up issue.
+Standard rules are the default. Brutal Mode is an opt-in overlay; its invariants are in the Brutal Mode section.
 
 ## Terms
 
@@ -250,12 +250,35 @@ Each item should be a unit or round test.
 22. After a round with someone ≥200, `DetermineWinners` is the highest total(s).
 23. Original Flip 7 package tests still pass (`go test ./...` from repo root).
 
-## Brutal Mode (out of scope)
+## Brutal Mode
 
-Not implemented. For later:
+PDF page 7: standard gameplay with three changes. Enabled only when `Game.Rules` is `BrutalRules()` (`ScoreCanGoNegative`, `ModifiersTargetBusted`, `Flip7AsAttack`). Default `StandardRules()` is unchanged.
 
-- Round score may go below 0.
-- Modifier may be given to a **busted** player.
-- On Flip 7, the player may take +15 **or** subtract 15 from another player.
+### PDF text
 
-Do not put these flags in `ScoreCalculator` / `ModifierAssigner` until that issue exists.
+- Your round score can go below zero.
+- You may give Modifier cards to any player, even if they've busted.
+- If you reach the Flip 7, you may choose to take 15 points or subtract 15 points from another player.
+
+### Adopted interpretations (frozen)
+
+| # | Question | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| B1 | −15 is whose score? | The target's **cumulative** `TotalScore`, not their unbanked line. | "Subtract 15 points from another player" is the counterpart of "take 15 points" (game points). A busted target has no line to tax. |
+| B2 | Target total under 15 | Cumulative may go negative. | Same as B3: Brutal round scores already go below zero. |
+| B3 | Floor at 0 | Off. `floor(sum/2?) − subs` may be negative; then Flip 7 ±15. | "Your round score can go below zero." Zero-card override (total 0 without Flip 7) still applies. |
+| B4 | Modifier on a busted player | Goes on their Modifier line **face down** (out of play). Not stealable/swappable. | Bust still flips the line face down. The gift is a score tax, not a table card. |
+| B5 | Busted round score | Numbers ignored (still a bust). Modifiers on that line are applied from base 0 (÷2 then −N, no floor). Empty modifiers → 0; −10 → −10. | Otherwise giving −N to a busted player would do nothing. |
+| B6 | Actions vs busted | Unchanged: Just One More, Flip Four, Swap, Steal, Discard still require a non-busted recipient / face-up cards. | PDF only extends **Modifier** targeting. |
+| B7 | Flip 7 exclusive-or | Either bank +15 **or** subtract 15 from another living player (not self). Solo Flip 7 always takes +15. | "Take 15 points **or** subtract 15." |
+| B8 | When the −15 is applied | After every hand is banked **without** the Flip 7 bonus; then +15 is granted to the Flip 7 player or −15 is applied to the chosen total. | Choice can see this round's banked lines (except the bonus itself). |
+
+### Brutal invariants for tests
+
+24. Brutal `{1} + −10` → −9. Standard still 0.
+25. Brutal: assign −10 to a busted player; they bank −10. Standard: Modifier candidates exclude busted.
+26. Brutal Flip 7 with attack: flipper banks the formula **without** +15; target `TotalScore` decreases by 15 (may go negative).
+27. Brutal Flip 7 with take: same as standard +15 on the flipper.
+28. Brutal Flip 7, one player: must take +15.
+29. Brutal: Steal/JOM/Flip Four still cannot target a busted player.
+30. Standard tests 1–23 still pass with default rules.

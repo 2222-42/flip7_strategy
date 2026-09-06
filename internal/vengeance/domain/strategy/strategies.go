@@ -36,7 +36,9 @@ type AggressiveStrategy struct {
 }
 
 func NewAggressiveStrategy() *AggressiveStrategy {
-	return &AggressiveStrategy{DefaultTargetSelector: NewDefaultTargetSelector()}
+	sel := NewDefaultTargetSelector()
+	sel.Flip7Bonus = Flip7BonusAttackLeader
+	return &AggressiveStrategy{DefaultTargetSelector: sel}
 }
 
 func (s *AggressiveStrategy) Name() string { return "Aggressive" }
@@ -91,11 +93,19 @@ type ExpectedValueStrategy struct {
 }
 
 func NewExpectedValueStrategy() *ExpectedValueStrategy {
+	sel := NewDefaultTargetSelector()
+	sel.Flip7Bonus = Flip7BonusAttackLeader
+	return &ExpectedValueStrategy{DefaultTargetSelector: sel}
+}
+
+func NewExpectedValueStrategyTakeBonus() *ExpectedValueStrategy {
 	return &ExpectedValueStrategy{DefaultTargetSelector: NewDefaultTargetSelector()}
 }
 
 func NewExpectedValueStrategyWithRisk(flipFourRisk float64) *ExpectedValueStrategy {
-	return &ExpectedValueStrategy{DefaultTargetSelector: NewDefaultTargetSelectorWithRisk(flipFourRisk)}
+	sel := NewDefaultTargetSelectorWithRisk(flipFourRisk)
+	sel.Flip7Bonus = Flip7BonusAttackLeader
+	return &ExpectedValueStrategy{DefaultTargetSelector: sel}
 }
 
 func (s *ExpectedValueStrategy) Name() string { return "ExpectedValue" }
@@ -159,6 +169,10 @@ func (s *AdaptiveStrategy) ChooseSwapPair(faceUp []domain.CardRef, self *domain.
 	return s.ev.ChooseSwapPair(faceUp, self)
 }
 
+func (s *AdaptiveStrategy) ChooseFlip7Bonus(self *domain.Player, opponents []*domain.Player) domain.Flip7BonusChoice {
+	return s.ev.ChooseFlip7Bonus(self, opponents)
+}
+
 func shouldAlwaysHit(ctx domain.DecisionContext) bool {
 	if ctx.Hand == nil {
 		return true
@@ -185,7 +199,7 @@ func isBehind(ctx domain.DecisionContext) bool {
 }
 
 func expectedExplorationValue(ctx domain.DecisionContext) float64 {
-	calc := domain.NewScoreCalculator()
+	calc := domain.NewScoreCalculatorFor(ctx.Rules)
 	current := calc.Compute(ctx.Hand).Total
 	cards := ctx.DrawUniverse()
 	total := len(cards)

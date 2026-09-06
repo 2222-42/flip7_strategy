@@ -36,14 +36,17 @@ func CatalogWithHeuristic(threshold int) []StrategySpec {
 	return c
 }
 
-type SimulationService struct{}
+type SimulationService struct {
+	Rules domain.GameRules
+}
 
 func NewSimulationService() *SimulationService {
 	return &SimulationService{}
 }
 
-func runGame(players []*domain.Player) *domain.Game {
+func (s *SimulationService) runGame(players []*domain.Player) *domain.Game {
 	game := domain.NewGame(players)
+	game.Rules = s.Rules
 	svc := NewGameService(game)
 	svc.Silent = true
 	svc.RunGame()
@@ -74,7 +77,7 @@ func (s *SimulationService) SinglePlayer(n int, catalog []StrategySpec) []NamedS
 		rounds := make([]int, 0, n)
 		for i := 0; i < n; i++ {
 			p := domain.NewPlayer(spec.Name, spec.New())
-			g := runGame([]*domain.Player{p})
+			g := s.runGame([]*domain.Player{p})
 			if p.TotalScore >= domain.WinningThreshold {
 				rounds = append(rounds, g.RoundCount)
 			}
@@ -122,7 +125,7 @@ func (s *SimulationService) Multiplayer(n, minPlayers, maxPlayers int, catalog [
 				spec := catalog[(i+j)%len(catalog)]
 				players = append(players, domain.NewPlayer(fmt.Sprintf("P%d-%s", j+1, spec.Name), spec.New()))
 			}
-			g := runGame(players)
+			g := s.runGame(players)
 			if len(g.Winners) == 0 {
 				continue
 			}
@@ -154,7 +157,7 @@ func (s *SimulationService) OneVsOne(n int, catalog []StrategySpec) []PairResult
 			for k := 0; k < n; k++ {
 				p1 := domain.NewPlayer(a.Name, a.New())
 				p2 := domain.NewPlayer(b.Name, b.New())
-				g := runGame([]*domain.Player{p1, p2})
+				g := s.runGame([]*domain.Player{p1, p2})
 				if len(g.Winners) == 0 {
 					continue
 				}
@@ -190,7 +193,7 @@ func (s *SimulationService) FlipFourThresholds(n int, thresholds []float64) []Ta
 			agg := strategy.NewAggressiveStrategy()
 			p1 := domain.NewPlayer(name, ev)
 			p2 := domain.NewPlayer("Aggressive", agg)
-			g := runGame([]*domain.Player{p1, p2})
+			g := s.runGame([]*domain.Player{p1, p2})
 			for _, w := range g.Winners {
 				if w.Name == name {
 					wins += 1.0 / float64(len(g.Winners))
@@ -201,4 +204,25 @@ func (s *SimulationService) FlipFourThresholds(n int, thresholds []float64) []Ta
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].WinRate > out[j].WinRate })
 	return out
+}
+
+func (s *SimulationService) Flip7TakeVsAttack(n int) (takeWin, attackWin float64) {
+	takeWins, attackWins := 0.0, 0.0
+	for i := 0; i < n; i++ {
+		take := strategy.NewExpectedValueStrategyTakeBonus()
+		attack := strategy.NewExpectedValueStrategy()
+		p1 := domain.NewPlayer("EV-Take15", take)
+		p2 := domain.NewPlayer("EV-Attack15", attack)
+		g := s.runGame([]*domain.Player{p1, p2})
+		for _, w := range g.Winners {
+			pts := 1.0 / float64(len(g.Winners))
+			if w.Name == "EV-Take15" {
+				takeWins += pts
+			}
+			if w.Name == "EV-Attack15" {
+				attackWins += pts
+			}
+		}
+	}
+	return takeWins / float64(n) * 100, attackWins / float64(n) * 100
 }

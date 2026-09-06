@@ -6,9 +6,17 @@ import (
 
 const DefaultFlipFourRisk = 0.50
 
+type Flip7BonusPolicy int
+
+const (
+	Flip7BonusTake Flip7BonusPolicy = iota
+	Flip7BonusAttackLeader
+)
+
 type DefaultTargetSelector struct {
 	deck            *domain.Deck
 	FlipFourRiskMin float64
+	Flip7Bonus      Flip7BonusPolicy
 }
 
 func NewDefaultTargetSelector() *DefaultTargetSelector {
@@ -76,10 +84,24 @@ func (s *DefaultTargetSelector) ChooseModifierTarget(_ domain.ModifierType, cand
 	if len(opponents) == 0 {
 		return firstOrSelf(candidates, self)
 	}
-	var best *domain.Player
-	bestScore := -1
-	calc := domain.NewScoreCalculator()
+	var live, busted []*domain.Player
 	for _, p := range opponents {
+		if p.CurrentHand != nil && p.CurrentHand.Status == domain.HandStatusBusted {
+			busted = append(busted, p)
+			continue
+		}
+		live = append(live, p)
+	}
+	if len(live) == 0 {
+		return highestTotal(busted)
+	}
+	calc := domain.NewScoreCalculator()
+	best := live[0]
+	bestScore := -1 << 30
+	if best.CurrentHand != nil {
+		bestScore = calc.Compute(best.CurrentHand).Total
+	}
+	for _, p := range live[1:] {
 		sc := 0
 		if p.CurrentHand != nil {
 			sc = calc.Compute(p.CurrentHand).Total
@@ -89,10 +111,14 @@ func (s *DefaultTargetSelector) ChooseModifierTarget(_ domain.ModifierType, cand
 			best = p
 		}
 	}
-	if best != nil {
-		return best
+	return best
+}
+
+func (s *DefaultTargetSelector) ChooseFlip7Bonus(_ *domain.Player, opponents []*domain.Player) domain.Flip7BonusChoice {
+	if s.Flip7Bonus == Flip7BonusAttackLeader {
+		return domain.Flip7BonusChoice{SubtractFrom: highestTotal(opponents)}
 	}
-	return opponents[0]
+	return domain.Flip7BonusChoice{}
 }
 
 func (s *DefaultTargetSelector) ChooseCardTarget(action domain.ActionType, faceUp []domain.CardRef, self *domain.Player) *domain.CardRef {
@@ -238,11 +264,12 @@ func opponentsOf(candidates []*domain.Player, self *domain.Player) []*domain.Pla
 }
 
 func highestTotal(ps []*domain.Player) *domain.Player {
-	var best *domain.Player
-	bestScore := -1
-	for _, p := range ps {
-		if p.TotalScore > bestScore {
-			bestScore = p.TotalScore
+	if len(ps) == 0 {
+		return nil
+	}
+	best := ps[0]
+	for _, p := range ps[1:] {
+		if p.TotalScore > best.TotalScore {
 			best = p
 		}
 	}

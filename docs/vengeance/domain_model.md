@@ -63,7 +63,7 @@ Totals: 89 regular numbers + 3 specials + 6 modifiers + 10 actions = **108**.
 | Freeze, Flip Three, Second Chance (×3) | Just One More, Flip Four, Swap, Steal, Discard (×2) |
 | `HandStatusFrozen` | absent; Stay leaves cards in the round |
 | Second Chance stays in hand | Actions are single-use and discarded after resolve |
-| Score: `(sum × ×2) + additives + 15` | Score: `floor(sum / 2 if ÷2) − subtractives`, min 0, then +15 |
+| Score: `(sum × ×2) + additives + 15` | Score: `floor(sum / 2 if ÷2) − subtractives`, min 0, then +15. Brutal: no floor; Flip 7 may −15 another total |
 | Action target = player | Player target (Just One More, Flip Four, Modifier) **and** card target (Swap, Steal, Discard) |
 | Duplicate number → bust (unless Second Chance) | Duplicate rank → bust, except Lucky 13 allows a second 13; Unlucky 7 does not bust **on receipt** |
 | Bank on Stay / Freeze / Flip 7 | Bank only at **round end** (Stay does not lock the line) |
@@ -489,7 +489,7 @@ type GameRepository interface {
   - Stay leaves cards face up; bust turns them down
   - Swap/Steal/Discard with empty table at deal time → discard action
   - Original `go test ./...` still passes
-- **Brutal Mode**: out of this model. Future flags only — score may go negative; busted players may receive cards; Flip 7 may subtract 15 from another player instead of adding 15. Do not encode those in `ScoreCalculator` / `ActionResolver` until a follow-up issue.
+- **Brutal Mode**: `Game.Rules` (`GameRules`). `StandardRules()` is all flags false. `BrutalRules()` sets `ScoreCanGoNegative`, `ModifiersTargetBusted`, and `Flip7AsAttack`. `ScoreCalculator` floors at 0 unless `ScoreCanGoNegative`. Modifier assignment uses every hand with a `CurrentHand` when `ModifiersTargetBusted`. Flip 7 bonus is take +15 or −15 to another total when `Flip7AsAttack`. Strategies implement `ChooseFlip7Bonus`. Interpretations: [`rules.md`](rules.md) Brutal Mode.
 
 ## Interpretations
 
