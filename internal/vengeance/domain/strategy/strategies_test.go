@@ -23,6 +23,41 @@ func TestMustHitOverridesStay(t *testing.T) {
 	}
 }
 
+func TestBrutalModifierTargetUsesNegativeTotals(t *testing.T) {
+	low := domain.NewPlayer("low", nil)
+	high := domain.NewPlayer("high", nil)
+	self := domain.NewPlayer("self", nil)
+	low.StartNewRound()
+	high.StartNewRound()
+	self.StartNewRound()
+	low.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(1))
+	low.CurrentHand.ReceiveModifier(domain.NewModifierCard(domain.ModifierMinus10))
+	high.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(8))
+	high.CurrentHand.ReceiveModifier(domain.NewModifierCard(domain.ModifierMinus10))
+	sel := NewDefaultTargetSelector()
+	sel.SetRules(domain.BrutalRules())
+	got := sel.ChooseModifierTarget(domain.ModifierMinus2, []*domain.Player{low, high}, self)
+	if got != high {
+		t.Fatalf("brutal should dump on higher line (8-10=-2 vs 1-10=-9), got %v", got)
+	}
+}
+
+func TestBrutalEVBustDoesNotRewardNegativeLine(t *testing.T) {
+	h := domain.NewPlayerHand()
+	h.ReceiveNumberLike(domain.NewNumberCard(1))
+	h.ReceiveModifier(domain.NewModifierCard(domain.ModifierMinus10))
+	dup := domain.NewNumberCard(1)
+	ctx := domain.DecisionContext{
+		Hand:  h,
+		Rules: domain.BrutalRules(),
+		Deck:  domain.DeckWithCards([]domain.TableCard{dup}),
+	}
+	ev := expectedExplorationValue(ctx)
+	if ev > 0 {
+		t.Fatalf("busting a -9 line onto another 1 should not look profitable, ev=%v", ev)
+	}
+}
+
 func TestHeuristicStopsAtThreshold(t *testing.T) {
 	h := domain.NewPlayerHand()
 	h.ReceiveNumberLike(domain.NewNumberCard(12))

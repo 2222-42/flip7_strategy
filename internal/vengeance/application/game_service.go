@@ -560,6 +560,9 @@ func (s *GameService) prepareStrategy(p *domain.Player) {
 	if d, ok := p.Strategy.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(s.Game.CurrentRound.Deck)
 	}
+	if r, ok := p.Strategy.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
+	}
 }
 
 func (s *GameService) isNonBusted(p *domain.Player) bool {

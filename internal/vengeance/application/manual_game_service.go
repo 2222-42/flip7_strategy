@@ -255,6 +255,12 @@ func (s *ManualGameService) playRound() {
 		return
 	}
 	s.scoreRound()
+	if s.rewound {
+		s.rewound = false
+		if s.Game.CurrentRound != nil && !s.Game.CurrentRound.IsEnded && !s.eof {
+			s.playRound()
+		}
+	}
 }
 
 func (s *ManualGameService) scoreRound() {
@@ -285,8 +291,6 @@ func (s *ManualGameService) scoreRound() {
 	}
 	target := s.promptFlip7Attack(flip7)
 	if s.aborted() {
-		flip7.BankScore(domain.Flip7Bonus)
-		fmt.Printf("%s Flip 7: takes +%d. Total: %d\n", flip7.Name, domain.Flip7Bonus, flip7.TotalScore)
 		return
 	}
 	if target != nil && target.ID != flip7.ID {
@@ -314,22 +318,27 @@ func (s *ManualGameService) promptFlip7Attack(self *domain.Player) *domain.Playe
 		}
 		fmt.Printf("%d. −15 to %s (Total %d)%s\n", i+1, p.Name, p.TotalScore, mark)
 	}
-	fmt.Print("Enter choice: ")
-	input := s.readLine()
-	if s.eof {
-		return nil
-	}
-	if s.handleHistoryCommand(input, false) {
-		return nil
-	}
-	idx, err := strconv.Atoi(input)
-	if err != nil || idx < 1 || idx > len(others) {
-		if idx == 0 {
+	for {
+		fmt.Print("Enter choice: ")
+		input := s.readLine()
+		if s.eof {
 			return nil
 		}
-		return suggested
+		if s.handleHistoryCommand(input, true) {
+			if s.aborted() {
+				return nil
+			}
+			continue
+		}
+		if strings.TrimSpace(input) == "0" {
+			return nil
+		}
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(others) {
+			return suggested
+		}
+		return others[idx-1]
 	}
-	return others[idx-1]
 }
 
 func (s *ManualGameService) analyzeState(p *domain.Player) {
@@ -354,6 +363,9 @@ func (s *ManualGameService) analyzeState(p *domain.Player) {
 	}
 	if d, ok := s.Advisor.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(deck)
+	}
+	if r, ok := s.Advisor.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
 	}
 	choice := s.Advisor.Decide(ctx)
 	if p.CurrentHand.MustHit() {
@@ -903,6 +915,9 @@ func (s *ManualGameService) prepareAdvisor() {
 	}
 	if d, ok := s.Advisor.(interface{ SetDeck(*domain.Deck) }); ok {
 		d.SetDeck(s.Game.CurrentRound.Deck)
+	}
+	if r, ok := s.Advisor.(interface{ SetRules(domain.GameRules) }); ok {
+		r.SetRules(s.Game.Rules)
 	}
 }
 

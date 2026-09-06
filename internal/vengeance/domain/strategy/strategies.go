@@ -142,6 +142,11 @@ func (s *AdaptiveStrategy) SetDeck(d *domain.Deck) {
 	s.agg.SetDeck(d)
 }
 
+func (s *AdaptiveStrategy) SetRules(r domain.GameRules) {
+	s.ev.SetRules(r)
+	s.agg.SetRules(r)
+}
+
 func (s *AdaptiveStrategy) active(ctx domain.DecisionContext) domain.Strategy {
 	if isBehind(ctx) {
 		return s.agg
@@ -216,17 +221,21 @@ func expectedExplorationValue(ctx domain.DecisionContext) float64 {
 	}
 
 	gainSum := 0.0
-	busts := 0
 	for _, card := range cards {
 		cl := ctx.Hand.Clone()
 		switch card.Spec.Type {
 		case domain.CardTypeNumber, domain.CardTypeSpecialNumber:
 			res := cl.ReceiveNumberLike(card)
 			if res.Busted {
-				busts++
+				gainSum += float64(calc.Compute(cl).Total - current)
 				continue
 			}
-			gainSum += float64(calc.Compute(cl).Total - current)
+			pv := calc.Compute(cl)
+			gain := pv.Total - current
+			if ctx.Rules.Flip7AsAttack && pv.Bonus > 0 && hasOthers {
+				gain -= pv.Bonus
+			}
+			gainSum += float64(gain)
 		case domain.CardTypeModifier:
 			if !hasOthers {
 				cl.ReceiveModifier(card)
@@ -235,7 +244,5 @@ func expectedExplorationValue(ctx domain.DecisionContext) float64 {
 		}
 	}
 
-	upside := gainSum / float64(total)
-	downside := float64(current) * (float64(busts) / float64(total))
-	return upside - downside
+	return gainSum / float64(total)
 }

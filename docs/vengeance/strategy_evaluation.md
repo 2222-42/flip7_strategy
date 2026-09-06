@@ -78,6 +78,10 @@ Cell is row-strategy win rate against the column strategy.
 - **Adaptive** matches EV when not behind, so the 1v1 vs EV is a coin flip (50%). It is the most even multiplayer profile (~26% at every table size).
 - **Heuristic-26** is the best number-sum stop on the solo sweep and wins a lot of 4-player mixed tables (34%). It is simpler than EV and close on speed.
 - **Aggressive** is punished: solo 20.4 rounds, and it loses 1v1 to Cautious (44.5%). Extra hits run into duplicates and Unlucky 7 without Freeze/Second Chance to bail out.
+- **Cautious** is still weak in mixed games (often <10%) but can beat Aggressive because Vengeance lines are attacked after Stay — pushing for Flip 7 is less free than in original Flip 7.
+- Flip Four risk 0.30–0.70 barely moved EV vs Aggressive (~76–78.5%). Hit/Stay and modifier dumping matter more than that threshold in this matchup.
+
+Take-that changes the original ranking: there is no Freeze to bank, so Aggressive’s extra cards are gifts to Steal / Discard / −N, and EV/Heuristic that stop on the number sum stay on top.
 
 ## Brutal Mode
 
@@ -158,7 +162,4 @@ Selected **Heuristic-22** (lowest average rounds among finished solos). Standard
 - **Heuristic-22** replaces Heuristic-26 as the Brutal stop; it is still the simple number-sum choice and close to EV.
 - **Taking +15 lost to attacking the leader** in a Brutal EV 1v1 (47% vs 53%). Subtracting 15 from the other total is the stronger Flip 7 default when two EV players meet.
 - **Aggressive** is still punished (solo 21.05 rounds; 38.75% vs Cautious).
-- **Cautious** is still weak in mixed games (often <10%) but can beat Aggressive because Vengeance lines are attacked after Stay — pushing for Flip 7 is less free than in original Flip 7.
-- Flip Four risk 0.30–0.70 barely moved EV vs Aggressive (~76–78.5%). Hit/Stay and modifier dumping matter more than that threshold in this matchup.
-
-Take-that changes the original ranking: there is no Freeze to bank, so Aggressive’s extra cards are gifts to Steal / Discard / −N, and EV/Heuristic that stop on the number sum stay on top.
+- Flip Four risk 0.30–0.70 still barely moved EV vs Aggressive (Brutal B5: 78–84.5%). Hit/Stay and modifier dumping matter more than that threshold.

@@ -15,6 +15,7 @@ const (
 
 type DefaultTargetSelector struct {
 	deck            *domain.Deck
+	rules           domain.GameRules
 	FlipFourRiskMin float64
 	Flip7Bonus      Flip7BonusPolicy
 }
@@ -29,6 +30,10 @@ func NewDefaultTargetSelectorWithRisk(threshold float64) *DefaultTargetSelector 
 
 func (s *DefaultTargetSelector) SetDeck(d *domain.Deck) {
 	s.deck = d
+}
+
+func (s *DefaultTargetSelector) SetRules(r domain.GameRules) {
+	s.rules = r
 }
 
 func (s *DefaultTargetSelector) ChoosePlayerTarget(action domain.ActionType, candidates []*domain.Player, self *domain.Player) *domain.Player {
@@ -95,7 +100,7 @@ func (s *DefaultTargetSelector) ChooseModifierTarget(_ domain.ModifierType, cand
 	if len(live) == 0 {
 		return highestTotal(busted)
 	}
-	calc := domain.NewScoreCalculator()
+	calc := domain.NewScoreCalculatorFor(s.rules)
 	best := live[0]
 	bestScore := -1 << 30
 	if best.CurrentHand != nil {
