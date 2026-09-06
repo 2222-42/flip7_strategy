@@ -100,6 +100,10 @@ func (c CardSpec) CountsTowardFlip7() bool {
 	return c.IsNumberLike()
 }
 
+func (c CardSpec) Equal(o CardSpec) bool {
+	return c == o
+}
+
 func (c CardSpec) String() string {
 	switch c.Type {
 	case CardTypeNumber:

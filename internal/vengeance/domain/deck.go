@@ -127,6 +127,17 @@ func (d *Deck) Shuffle() {
 	})
 }
 
+func (d *Deck) RemoveMatching(spec CardSpec) (TableCard, bool) {
+	for i, c := range d.Cards {
+		if c.Spec.Equal(spec) {
+			d.Cards = append(d.Cards[:i], d.Cards[i+1:]...)
+			d.Remaining.remove(c.Spec)
+			return c, true
+		}
+	}
+	return TableCard{}, false
+}
+
 func (d *Deck) Draw() (TableCard, error) {
 	if len(d.Cards) == 0 {
 		return TableCard{}, errors.New("deck is empty")
