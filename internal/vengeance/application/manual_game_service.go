@@ -14,7 +14,7 @@ import (
 
 const inputHelp = `Cards: 1-13, 0/Z (Zero), U (Unlucky 7), L (Lucky 13), -2/-4/-6/-8/-10, /2
 Actions: J (Just One More), F4 (Flip Four), SW (Swap), ST (Steal), DI (Discard)
-Commands: S stay, UNDO/<, REDO/>, HANDS, HELP`
+Commands: S stay, UNDO/<, REDO/R/>, HANDS, HELP`
 
 var (
 	errRewound = errors.New("rewound")
@@ -205,7 +205,9 @@ func (s *ManualGameService) playRound() {
 				default:
 					if !s.Game.CurrentRound.IsEnded {
 						s.cursor = (s.cursor + 1) % len(order)
-						s.PushState()
+						if len(s.Game.CurrentRound.ActivePlayers()) > 0 {
+							s.PushState()
+						}
 					}
 				}
 				acted = true
@@ -345,12 +347,12 @@ func (s *ManualGameService) handleHistoryCommand(input string, nested bool) bool
 
 func isUndoCommand(input string) bool {
 	u := strings.ToUpper(strings.TrimSpace(input))
-	return u == "UNDO" || input == "<"
+	return u == "UNDO" || u == "<"
 }
 
 func isRedoCommand(input string) bool {
 	u := strings.ToUpper(strings.TrimSpace(input))
-	return u == "REDO" || u == "R" || input == ">"
+	return u == "REDO" || u == "R" || u == ">"
 }
 
 func (s *ManualGameService) aborted() bool {
@@ -673,19 +675,24 @@ func (s *ManualGameService) promptPlayer(title string, candidates []*domain.Play
 		}
 		fmt.Printf("%d. %s (Total %d) %s%s\n", i+1, c.Name, c.TotalScore, formatHand(c.CurrentHand), mark)
 	}
-	fmt.Print("Enter choice: ")
-	input := s.readLine()
-	if s.eof {
-		return nil
+	for {
+		fmt.Print("Enter choice: ")
+		input := s.readLine()
+		if s.eof {
+			return nil
+		}
+		if s.handleHistoryCommand(input, true) {
+			if s.aborted() {
+				return nil
+			}
+			continue
+		}
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(candidates) {
+			return suggested
+		}
+		return candidates[idx-1]
 	}
-	if s.handleHistoryCommand(input, true) {
-		return nil
-	}
-	idx, err := strconv.Atoi(input)
-	if err != nil || idx < 1 || idx > len(candidates) {
-		return suggested
-	}
-	return candidates[idx-1]
 }
 
 func (s *ManualGameService) promptCardRef(title string, refs []domain.CardRef, suggested *domain.CardRef) *domain.CardRef {
@@ -698,19 +705,24 @@ func (s *ManualGameService) promptCardRef(title string, refs []domain.CardRef, s
 		}
 		fmt.Printf("%d. %s: %s%s\n", i+1, owner.Name, r.Spec.String(), mark)
 	}
-	fmt.Print("Enter choice: ")
-	input := s.readLine()
-	if s.eof {
-		return nil
+	for {
+		fmt.Print("Enter choice: ")
+		input := s.readLine()
+		if s.eof {
+			return nil
+		}
+		if s.handleHistoryCommand(input, true) {
+			if s.aborted() {
+				return nil
+			}
+			continue
+		}
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(refs) {
+			return suggested
+		}
+		return &refs[idx-1]
 	}
-	if s.handleHistoryCommand(input, true) {
-		return nil
-	}
-	idx, err := strconv.Atoi(input)
-	if err != nil || idx < 1 || idx > len(refs) {
-		return suggested
-	}
-	return &refs[idx-1]
 }
 
 func (s *ManualGameService) promptSwap(refs []domain.CardRef, suggested *domain.SwapPair) *domain.SwapPair {
@@ -721,7 +733,13 @@ func (s *ManualGameService) promptSwap(refs []domain.CardRef, suggested *domain.
 	}
 	fmt.Println("Pick first card, then second (different players).")
 	first := s.promptCardRef("Swap card A", refs, swapEnd(suggested, true))
+	if s.aborted() {
+		return nil
+	}
 	second := s.promptCardRef("Swap card B", refs, swapEnd(suggested, false))
+	if s.aborted() {
+		return nil
+	}
 	if first == nil || second == nil {
 		return suggested
 	}
@@ -837,13 +855,16 @@ func (s *ManualGameService) discardAll(cards []domain.TableCard) {
 
 func (s *ManualGameService) readLine() string {
 	line, err := s.Reader.ReadString('\n')
+	trimmed := strings.TrimSpace(line)
 	if err != nil {
-		s.eof = true
 		if err != io.EOF {
 			fmt.Printf("Error reading input: %v\n", err)
+			s.eof = true
+		} else if trimmed == "" {
+			s.eof = true
 		}
 	}
-	return strings.TrimSpace(line)
+	return trimmed
 }
 
 func (s *ManualGameService) readInt(def int) int {

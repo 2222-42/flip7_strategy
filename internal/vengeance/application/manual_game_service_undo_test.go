@@ -76,6 +76,69 @@ func TestManualUIsUnluckySevenNotUndo(t *testing.T) {
 	}
 }
 
+func TestManualUndoLastStayFromNextRound(t *testing.T) {
+	in := strings.NewReader("2\nBob\n1\n5\n11\nS\nS\nUNDO\n7\nS\n")
+	svc := NewManualGameService(bufio.NewReader(in))
+	svc.Run()
+	me := svc.Game.Players[0]
+	if me.TotalScore != 18 {
+		t.Fatalf("Me total=%d, want 18 (last Stay undone, then 11+7)", me.TotalScore)
+	}
+}
+
+func TestReadLineConsumesEOFPartialLine(t *testing.T) {
+	in := strings.NewReader("2\nBob\n1\n5\n11\nS\nS")
+	svc := NewManualGameService(bufio.NewReader(in))
+	svc.setupPlayers()
+	svc.Game.RoundCount = 1
+	svc.playRound()
+	me := svc.Game.Players[0]
+	if me.TotalScore != 11 {
+		t.Fatalf("Me total=%d, want 11 from last Stay without trailing newline", me.TotalScore)
+	}
+}
+
+func TestManualUndoAbortsSwapAfterFirstCard(t *testing.T) {
+	in := strings.NewReader("2\nBob\n1\n5\n8\nS\nSW\nUNDO\nS\n")
+	svc := NewManualGameService(bufio.NewReader(in))
+	svc.setupPlayers()
+	svc.Game.RoundCount = 1
+	svc.playRound()
+	me, bob := svc.Game.Players[0], svc.Game.Players[1]
+	if me.TotalScore != 8 || bob.TotalScore != 5 {
+		t.Fatalf("scores Me=%d Bob=%d, want 8 and 5 (Swap aborted)", me.TotalScore, bob.TotalScore)
+	}
+	if len(me.CurrentHand.NumberLine) != 1 || me.CurrentHand.NumberLine[0].Spec.Value != 8 {
+		t.Fatalf("Me should still have 8, line=%v", me.CurrentHand.NumberLine)
+	}
+}
+
+func TestNestedFailedRedoDoesNotUseSuggested(t *testing.T) {
+	p1 := domain.NewPlayer("Me", nil)
+	p2 := domain.NewPlayer("Bob", nil)
+	game := domain.NewGame([]*domain.Player{p1, p2})
+	game.Deck = domain.NewUnshuffledDeck()
+	game.CurrentRound = domain.NewRound([]*domain.Player{p1, p2}, p1, game.Deck)
+	p1.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(8))
+	p2.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(3))
+	mod, ok := game.CurrentRound.Deck.RemoveMatching(domain.NewModifierCard(domain.ModifierMinus4).Spec)
+	if !ok {
+		t.Fatal("expected -4")
+	}
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("REDO\n1\n")))
+	svc.Game = game
+	svc.assignModifier(p1, mod)
+	if len(p1.CurrentHand.ModifierLine) != 1 {
+		t.Fatalf("failed REDO must re-prompt, then 1 assigns -4 to Me, mods=%v", p1.CurrentHand.ModifierLine)
+	}
+}
+
+func TestUndoCommandTrimsWhitespace(t *testing.T) {
+	if !isUndoCommand(" <") || !isRedoCommand(" >") {
+		t.Fatal("UNDO/REDO aliases should match after TrimSpace")
+	}
+}
+
 func TestSnapshotRestoreRelinksOfferOrder(t *testing.T) {
 	p1 := domain.NewPlayer("Me", nil)
 	p2 := domain.NewPlayer("Bob", nil)

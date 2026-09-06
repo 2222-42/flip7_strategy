@@ -161,7 +161,7 @@ func (s *ManualGameService) tryAbortCurrent() bool {
 		s.rewound = false
 		return false
 	}
-	fmt.Println("Undid last action.")
+	fmt.Println("Cancelled the current action.")
 	return true
 }
 
