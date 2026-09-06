@@ -38,10 +38,10 @@ func (s *ManualGameService) Run() {
 
 func (s *ManualGameService) setupPlayers() {
 	fmt.Print("Enter number of players: ")
-	n := s.readInt(3)
+	n := s.readInt(0)
 	if n < 1 {
-		n = 2
-		fmt.Println("Defaulting to 2 players.")
+		n = 3
+		fmt.Println("Defaulting to 3 players.")
 	}
 
 	players := make([]*domain.Player, 0, n)
@@ -169,7 +169,7 @@ func (s *ManualGameService) analyzeState(p *domain.Player) {
 	calc := domain.NewScoreCalculator()
 	fmt.Printf("Current Hand: %s | Round: %d\n", formatHand(p.CurrentHand), calc.Compute(p.CurrentHand).Total)
 
-	deck := s.Game.CurrentRound.Deck
+	deck := s.riskDeck()
 	risk := 0.0
 	if deck != nil {
 		risk = deck.EstimateHitRisk(p.CurrentHand)
@@ -177,7 +177,7 @@ func (s *ManualGameService) analyzeState(p *domain.Player) {
 	fmt.Printf("Bust Rate: %.2f%%\n", risk*100)
 
 	ctx := domain.DecisionContext{
-		Deck:         deck,
+		Deck:         s.Game.CurrentRound.Deck,
 		DiscardPile:  s.Game.DiscardPile,
 		Hand:         p.CurrentHand,
 		PlayerScore:  p.TotalScore,
@@ -395,6 +395,10 @@ func (s *ManualGameService) executeSteal(actor *domain.Player, action domain.Tab
 		ref = fallbackCardRef(refs, actor)
 	}
 	owner := s.Game.PlayerByID(ref.OwnerID)
+	if owner == nil || owner.CurrentHand == nil {
+		fmt.Println("Steal failed (owner gone).")
+		return
+	}
 	stolen, ok := owner.CurrentHand.RemoveCard(ref.ID)
 	if !ok {
 		fmt.Println("Steal failed (card gone).")
@@ -427,6 +431,10 @@ func (s *ManualGameService) executeDiscard(actor *domain.Player, action domain.T
 		ref = fallbackCardRef(refs, actor)
 	}
 	owner := s.Game.PlayerByID(ref.OwnerID)
+	if owner == nil || owner.CurrentHand == nil {
+		fmt.Println("Discard failed (owner gone).")
+		return
+	}
 	removed, ok := owner.CurrentHand.RemoveCard(ref.ID)
 	if !ok {
 		fmt.Println("Discard failed (card gone).")
@@ -441,13 +449,14 @@ func (s *ManualGameService) executeSwap(actor *domain.Player, action domain.Tabl
 	s.discard(action)
 	s.prepareAdvisor()
 	suggested := s.Advisor.ChooseSwapPair(refs, actor)
-	pair := s.promptSwap(refs, suggested)
-	if pair == nil || pair.A.OwnerID == pair.B.OwnerID {
-		pair = domain.FirstLegalSwapPair(refs)
-	}
-	if pair == nil {
+	if domain.FirstLegalSwapPair(refs) == nil {
 		fmt.Println("Swap: no legal pair. Discarded.")
 		return
+	}
+	pair := s.promptSwap(refs, suggested)
+	for pair == nil || pair.A.OwnerID == pair.B.OwnerID || pair.A.ID == pair.B.ID {
+		fmt.Println("Swap needs two face-up cards from different players. Try again.")
+		pair = s.promptSwap(refs, suggested)
 	}
 	ownerA := s.Game.PlayerByID(pair.A.OwnerID)
 	ownerB := s.Game.PlayerByID(pair.B.OwnerID)
@@ -569,8 +578,30 @@ func (s *ManualGameService) readCardFromTable() (domain.TableCard, error) {
 			fmt.Printf("Invalid: %v\n", err)
 			continue
 		}
-		return s.takeFromDeck(spec)
+		card, err := s.takeFromDeck(spec)
+		if err != nil {
+			if s.Game.CurrentRound == nil || s.Game.CurrentRound.Deck == nil {
+				return domain.TableCard{}, err
+			}
+			fmt.Printf("Error: %v. Try again.\n", err)
+			continue
+		}
+		return card, nil
 	}
+}
+
+func (s *ManualGameService) riskDeck() *domain.Deck {
+	if s.Game.CurrentRound == nil {
+		return nil
+	}
+	d := s.Game.CurrentRound.Deck
+	if d != nil && len(d.Cards) > 0 {
+		return d
+	}
+	if len(s.Game.DiscardPile) > 0 {
+		return domain.DeckWithCards(s.Game.DiscardPile)
+	}
+	return d
 }
 
 func (s *ManualGameService) prepareAdvisor() {

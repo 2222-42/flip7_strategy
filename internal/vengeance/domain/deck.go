@@ -131,7 +131,7 @@ func (d *Deck) RemoveMatching(spec CardSpec) (TableCard, bool) {
 	for i, c := range d.Cards {
 		if c.Spec.Equal(spec) {
 			d.Cards = append(d.Cards[:i], d.Cards[i+1:]...)
-			d.Remaining.remove(spec)
+			d.Remaining.remove(c.Spec)
 			return c, true
 		}
 	}

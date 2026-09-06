@@ -101,11 +101,7 @@ func (c CardSpec) CountsTowardFlip7() bool {
 }
 
 func (c CardSpec) Equal(o CardSpec) bool {
-	return c.Type == o.Type &&
-		c.Value == o.Value &&
-		c.SpecialKind == o.SpecialKind &&
-		c.ModifierType == o.ModifierType &&
-		c.ActionType == o.ActionType
+	return c == o
 }
 
 func (c CardSpec) String() string {

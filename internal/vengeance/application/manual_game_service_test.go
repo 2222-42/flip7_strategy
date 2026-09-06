@@ -54,7 +54,7 @@ func TestManualStayBanksAtRoundEnd(t *testing.T) {
 }
 
 func TestAdvisorSuggestsStayOnHighSum(t *testing.T) {
-	p := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	p := domain.NewPlayer("Me", strategy.NewCautiousStrategy())
 	p.StartNewRound()
 	p.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(12))
 	p.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(13))
@@ -63,9 +63,102 @@ func TestAdvisorSuggestsStayOnHighSum(t *testing.T) {
 		Deck: domain.NewUnshuffledDeck(),
 		Hand: p.CurrentHand,
 	}
-	choice := strategy.NewAdaptiveStrategy().Decide(ctx)
-	if choice != domain.TurnChoiceStay && choice != domain.TurnChoiceHit {
-		t.Fatalf("unexpected choice %s", choice)
+	if strategy.NewCautiousStrategy().Decide(ctx) != domain.TurnChoiceStay {
+		t.Fatal("Cautious should stay on number sum 36")
+	}
+}
+
+func TestPromptStayDoesNotBank(t *testing.T) {
+	p := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	game := domain.NewGame([]*domain.Player{p})
+	game.CurrentRound = domain.NewRound([]*domain.Player{p}, p, domain.NewUnshuffledDeck())
+	p.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(8))
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("S\n")))
+	svc.Game = game
+	svc.promptAndProcess(p, true)
+	if p.CurrentHand.Status != domain.HandStatusStayed {
+		t.Fatalf("status=%s", p.CurrentHand.Status)
+	}
+	if p.TotalScore != 0 {
+		t.Fatalf("Stay must not bank yet, total=%d", p.TotalScore)
+	}
+}
+
+func TestJustOneMoreForceStayWithoutBanking(t *testing.T) {
+	p1 := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	p2 := domain.NewPlayer("Bob", strategy.NewAdaptiveStrategy())
+	game := domain.NewGame([]*domain.Player{p1, p2})
+	game.Deck = domain.NewUnshuffledDeck()
+	game.CurrentRound = domain.NewRound([]*domain.Player{p1, p2}, p1, game.Deck)
+	jom, ok := game.CurrentRound.Deck.RemoveMatching(domain.NewActionCard(domain.ActionJustOneMore).Spec)
+	if !ok {
+		t.Fatal("expected Just One More in deck")
+	}
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("2\n5\n")))
+	svc.Game = game
+	svc.processCard(p1, jom)
+	if p2.CurrentHand.Status != domain.HandStatusStayed {
+		t.Fatalf("Bob status=%s, want stayed", p2.CurrentHand.Status)
+	}
+	if p2.TotalScore != 0 {
+		t.Fatalf("JOM stay must not bank yet, total=%d", p2.TotalScore)
+	}
+}
+
+func TestReadCardFromTableRetriesMissingCard(t *testing.T) {
+	p := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	game := domain.NewGame([]*domain.Player{p})
+	game.CurrentRound = domain.NewRound([]*domain.Player{p}, p, domain.NewUnshuffledDeck())
+	for {
+		if _, ok := game.CurrentRound.Deck.RemoveMatching(domain.NewNumberCard(5).Spec); !ok {
+			break
+		}
+	}
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("5\n6\n")))
+	svc.Game = game
+	card, err := svc.readCardFromTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.Spec.Value != 6 {
+		t.Fatalf("got %v, want 6 after retry", card)
+	}
+}
+
+func TestBustRateUsesDiscardWhenDrawPileEmpty(t *testing.T) {
+	p := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	game := domain.NewGame([]*domain.Player{p})
+	game.CurrentRound = domain.NewRound([]*domain.Player{p}, p, domain.DeckWithCards(nil))
+	p.CurrentHand.ReceiveNumberLike(domain.NewNumberCard(12))
+	game.DiscardPile = []domain.TableCard{domain.NewNumberCard(12), domain.NewNumberCard(12)}
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("")))
+	svc.Game = game
+	d := svc.riskDeck()
+	if d == nil || d.EstimateHitRisk(p.CurrentHand) != 1 {
+		t.Fatalf("expected certain bust from discard 12s, deck=%v", d)
+	}
+}
+
+func TestSwapRejectsSameOwnerPair(t *testing.T) {
+	p1 := domain.NewPlayer("Me", strategy.NewAdaptiveStrategy())
+	p2 := domain.NewPlayer("Bob", strategy.NewAdaptiveStrategy())
+	game := domain.NewGame([]*domain.Player{p1, p2})
+	game.Deck = domain.NewUnshuffledDeck()
+	game.CurrentRound = domain.NewRound([]*domain.Player{p1, p2}, p1, game.Deck)
+	a := domain.NewNumberCard(8)
+	b := domain.NewNumberCard(3)
+	p1.CurrentHand.ReceiveNumberLike(a)
+	p2.CurrentHand.ReceiveNumberLike(b)
+	swap, ok := game.CurrentRound.Deck.RemoveMatching(domain.NewActionCard(domain.ActionSwap).Spec)
+	if !ok {
+		t.Fatal("expected Swap in deck")
+	}
+	// 1 then 1 is the same card; then 1 and 2 is a legal pair.
+	svc := NewManualGameService(bufio.NewReader(strings.NewReader("1\n1\n1\n2\n")))
+	svc.Game = game
+	svc.executeSwap(p1, swap)
+	if len(p1.CurrentHand.NumberLine) != 1 || p1.CurrentHand.NumberLine[0].ID != b.ID {
+		t.Fatalf("Me should have Bob's 3, line=%v", p1.CurrentHand.NumberLine)
 	}
 }
 
