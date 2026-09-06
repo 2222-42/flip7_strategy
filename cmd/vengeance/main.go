@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"flip7_strategy/internal/vengeance/application"
 	"flip7_strategy/internal/vengeance/domain"
@@ -9,9 +12,23 @@ import (
 )
 
 func main() {
-	fmt.Println("Flip 7: With a Vengeance — automatic sample")
-	fmt.Println("Rules: https://cdn.shopify.com/s/files/1/0611/3958/3198/files/26_FLIP_7_VENGEANCE_RULES_C.pdf?v=1770853609")
+	fmt.Println("Flip 7: With a Vengeance")
+	fmt.Println("1. Automatic Play (sample AI game)")
+	fmt.Println("2. Manual Mode (physical game helper)")
+	fmt.Print("Enter choice (1-2): ")
 
+	reader := bufio.NewReader(os.Stdin)
+	choice, _ := reader.ReadString('\n')
+	switch strings.TrimSpace(choice) {
+	case "2":
+		application.NewManualGameService(reader).Run()
+	default:
+		runAutomatic()
+	}
+}
+
+func runAutomatic() {
+	fmt.Println("\n--- Automatic Play ---")
 	players := []*domain.Player{
 		domain.NewPlayer("Ava (EV)", strategy.NewExpectedValueStrategy()),
 		domain.NewPlayer("Ben (Heuristic-26)", strategy.NewHeuristicStrategy(26)),
