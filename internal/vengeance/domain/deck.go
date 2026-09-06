@@ -127,6 +127,13 @@ func (d *Deck) Shuffle() {
 	})
 }
 
+func (d *Deck) RebuildRemaining() {
+	if d == nil {
+		return
+	}
+	d.Remaining = countsFromCards(d.Cards)
+}
+
 func (d *Deck) RemoveMatching(spec CardSpec) (TableCard, bool) {
 	for i, c := range d.Cards {
 		if c.Spec.Equal(spec) {
