@@ -22,7 +22,7 @@ This project simulates the "Flip 7" card game, where players push their luck to 
 > go run cmd/evaluate_vengeance/main.go -n 200
 > ```
 >
-> Manual mode (choice `2`) is a helper for a physical Vengeance game: type the cards as they appear and Adaptive suggests Hit/Stay plus action/modifier targets. Stay banks only at round end. Input codes: `1-13`, `0`/`Z`, `U`, `L`, `-2`…`-10`, `/2`, `J`, `F4`, `SW`, `ST`, `DI`, `S`.
+> Manual mode (choice `2`) is a helper for a physical Vengeance game: type the cards as they appear and Adaptive suggests Hit/Stay plus action/modifier targets. Stay banks only at round end. Input codes: `1-13`, `0`/`Z`, `U` (Unlucky 7), `L`, `-2`…`-10`, `/2`, `J`, `F4`, `SW`, `ST`, `DI`, `S`. Undo/redo: `UNDO`/`<` and `REDO`/`R`/`>` (`U` is the Unlucky 7 card). Nested action input undoes the whole action.
 >
 > Official rules: [Ruleset Edition 1 PDF](https://cdn.shopify.com/s/files/1/0611/3958/3198/files/26_FLIP_7_VENGEANCE_RULES_C.pdf?v=1770853609). The original Flip 7 simulation is unchanged.
 

@@ -53,6 +53,26 @@ func NewRound(players []*Player, dealer *Player, deck *Deck) *Round {
 	}
 }
 
+// RebuildOfferOrder restores clockwise order from the dealer without resetting hands.
+func (r *Round) RebuildOfferOrder() {
+	if r == nil || r.Dealer == nil || len(r.Players) == 0 {
+		return
+	}
+	dealerIdx := 0
+	for i, p := range r.Players {
+		if p.ID == r.Dealer.ID {
+			dealerIdx = i
+			break
+		}
+	}
+	n := len(r.Players)
+	order := make([]*Player, 0, n)
+	for i := 1; i <= n; i++ {
+		order = append(order, r.Players[(dealerIdx+i)%n])
+	}
+	r.OfferOrder = order
+}
+
 func (r *Round) End(reason RoundEndReason) {
 	r.IsEnded = true
 	r.EndReason = reason
