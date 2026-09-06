@@ -14,6 +14,15 @@ This project simulates the "Flip 7" card game, where players push their luck to 
 
 > [!NOTE]
 > This is a strategy study and simulation. To play the actual game with friends, please support the creators by purchasing the physical copy: [Buy Flip 7](https://theop.games/products/flip-7)
+>
+> **Flip 7: With a Vengeance** is a separate ruleset (108-card take-that edition). Domain model and rules live under [`docs/vengeance/`](docs/vengeance/domain_model.md). Evaluation: [`docs/vengeance/strategy_evaluation.md`](docs/vengeance/strategy_evaluation.md) ([Epic #92](https://github.com/2222-42/flip7_strategy/issues/92)).
+>
+> ```bash
+> go run cmd/vengeance/main.go
+> go run cmd/evaluate_vengeance/main.go -n 200
+> ```
+>
+> Official rules: [Ruleset Edition 1 PDF](https://cdn.shopify.com/s/files/1/0611/3958/3198/files/26_FLIP_7_VENGEANCE_RULES_C.pdf?v=1770853609). The original Flip 7 simulation is unchanged.
 
 ## Features
 
@@ -83,7 +92,8 @@ This tool outputs statistics such as total games played, bust rates, and win cou
 
 ## Documentation
 
-- [Strategy Evaluation Results](docs/strategy_evaluation.md): Detailed analysis of strategy performance, including single-player speed and multiplayer win rates.
+- [Strategy Evaluation Results](docs/strategy_evaluation.md): Original Flip 7 — single-player speed and multiplayer win rates.
+- [Vengeance Strategy Evaluation](docs/vengeance/strategy_evaluation.md): Flip 7: With a Vengeance — same axes plus heuristic stop and Flip Four targeting.
 
 ## Project Structure
 
