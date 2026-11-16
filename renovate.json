@@ -26,5 +26,7 @@
     "labels": [
         "dependencies"
     ],
-    "dependencyDashboard": true
+    "dependencyDashboard": {
+        "enabled": true
+    }
 }
